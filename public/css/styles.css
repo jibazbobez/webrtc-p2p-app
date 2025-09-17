@@ -1,7 +1,10 @@
-/* public/css/styles.css */
+/* ===================================================================
+//                 WebRTC P2P Call - styles.css
+//              Полная, отформатированная версия
+// =================================================================== */
 
 /* =======================
-   ГЛОБАЛЬНЫЕ СТИЛИ И ПЕРЕМЕННЫЕ (из вашего файла)
+   1. ГЛОБАЛЬНЫЕ СТИЛИ И ПЕРЕМЕННЫЕ
    ======================== */
 :root {
     --bg-color: #121212;
@@ -19,6 +22,11 @@
     padding: 0;
 }
 
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
 body {
     font-family: var(--font-family);
     background-color: var(--bg-color);
@@ -26,6 +34,15 @@ body {
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .container {
@@ -35,7 +52,7 @@ body {
 }
 
 /* =======================
-   HERO СЕКЦИЯ (адаптировано)
+   2. СЕКЦИЯ ВХОДА (HERO)
    ======================== */
 .hero-section {
     min-height: 100vh;
@@ -47,6 +64,7 @@ body {
 
 .hero-content {
     max-width: 800px;
+    margin: 0 auto;
 }
 
 .hero-content h1 {
@@ -64,85 +82,6 @@ body {
     margin: 0 auto 40px;
 }
 
-/* =======================
-   СТИЛИ ОТОБРАЖЕНИЯ ИМЕНИ КОМНАТЫ
-   ======================== */
-.room-name-container {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.room-label {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 5px;
-}
-
-.room-id-wrapper {
-    display: inline-flex; /* Чтобы блок был по ширине контента */
-    align-items: center;
-    gap: 15px;
-    background-color: var(--surface-color);
-    padding: 10px 20px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-}
-
-#room-name-text {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.copy-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative; /* Для всплывающей подсказки */
-}
-
-.copy-button img {
-    width: 25px;
-    height: 25px;
-    opacity: 0.6;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.copy-button:hover img {
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-/* Стиль для подсказки "Скопировано!" */
-.copy-button::after {
-    content: 'Скопировано!';
-    position: absolute;
-    bottom: 120%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #007AFF;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease, bottom 0.3s ease;
-}
-
-.copy-button.copied::after {
-    opacity: 1;
-    bottom: 130%;
-}
-
-/* =======================
-   БЛОК ВХОДА В КОМНАТУ (новые стили)
-   ======================== */
 .join-box {
     max-width: 600px;
     margin: 40px auto 0;
@@ -208,7 +147,6 @@ body {
     border-radius: 8px;
     cursor: pointer;
     transition: border-color 0.2s ease;
-    /* Убираем лишние отступы, чтобы картинка была по центру */
     padding: 0;
     display: flex;
     justify-content: center;
@@ -219,128 +157,240 @@ body {
     border-color: var(--text-primary);
 }
 
-/* Стили для самой иконки внутри кнопки */
 #regenerate-btn img {
     width: 24px;
     height: 24px;
-    /* Задаем анимацию вращения */
     transition: transform 0.4s ease;
 }
 
-/* Применяем анимацию к иконке при наведении на кнопку */
 #regenerate-btn:hover img {
     transform: rotate(360deg);
 }
 
 /* =======================
-   СЕКЦИЯ С ВИДЕО (новые стили)
+   3. СЕКЦИЯ ВИДЕОЗВОНКА
    ======================== */
 .videos-section {
-    padding: 50px 0;
-}
-
-.videos-section h3 {
-    text-align: center;
-    color: var(--text-secondary);
-    font-weight: 400;
-    margin-bottom: 30px;
-}
-
-#videos {
+    flex-grow: 1;
     display: flex;
-    justify-content: center;
-    gap: 30px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    min-height: 0;
 }
 
-.video-container {
+.room-name-container {
     text-align: center;
+    margin: 20px 0 15px 0;
+    flex-shrink: 0;
 }
 
-.video-container h4 {
-    margin-bottom: 10px;
+.room-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+}
+
+.room-id-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    background-color: var(--surface-color);
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+
+#room-name-text {
+    font-size: 1.5rem;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
-video {
-    background-color: black;
-    border: 2px solid var(--border-color);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 640px;
-    aspect-ratio: 16/9;
-    object-fit: cover;
+.copy-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.copy-button img {
+    width: 25px;
+    height: 25px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.copy-button:hover img {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.copy-button::after {
+    content: 'Скопировано!';
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-accent);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, bottom 0.3s ease;
+}
+
+.copy-button.copied::after {
+    opacity: 1;
+    bottom: 130%;
 }
 
 /* =======================
-   СТИЛИ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ (Новая версия)
+   4. СТИЛИ СЕТКИ ВИДЕО ("GALLERY-LIKE")
    ======================== */
-
-/* Контейнер для нашего локального видео должен быть относительным,
-   чтобы абсолютно позиционировать кнопки внутри него. */
-#local-video-container {
-    position: relative;
-    overflow: hidden; /* Скрывает части кнопок, если они вылезут за скругленные углы видео */
+#videos {
+    flex-grow: 1;
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    transition: all 0.3s ease;
+    min-height: 0;
+    grid-auto-rows: minmax(0, 1fr);
 }
 
-/* Общий контейнер для всех элементов управления */
+#videos.single-user-layout {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.video-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background-color: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+#videos.single-user-layout .video-container {
+    width: 70vw;
+    max-width: 960px;
+    height: auto;
+}
+
+.video-container h4 {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    bottom: auto;
+    margin: 0;
+    padding: 2px 8px;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    z-index: 10;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+}
+
+.video-container.speaking {
+    /* Создаем рамку с помощью box-shadow, чтобы не влиять на размер элемента */
+    box-shadow: 0 0 0 4px var(--primary-accent);
+    /* 
+       Анимация:
+       - 'pulse' - имя анимации
+       - 1.5s - длительность
+       - ease-out - функция плавности (быстро в начале, медленно в конце)
+       - infinite - бесконечное повторение
+       - alternate - проигрывать вперед и назад (для эффекта "дыхания")
+    */
+    animation: pulse 1.5s ease-out infinite alternate;
+}
+
+/* Сама анимация "дыхания" рамки */
+@keyframes pulse {
+    /* Начальное состояние (полная яркость) */
+    from {
+        box-shadow: 0 0 0 4px var(--primary-accent);
+    }
+    /* Конечное состояние (полупрозрачная) */
+    to {
+        box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.3);
+    }
+}
+
+/* =======================
+   5. СТИЛИ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ
+   ======================== */
 .call-controls {
-    position: absolute; /* Позиционируем поверх видео */
+    position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
     padding: 15px;
     display: flex;
-    justify-content: space-between; /* Разносим кнопки и чекбокс по сторонам */
+    justify-content: flex-end;
     align-items: center;
-    /* Плавное появление при наведении на видео */
     opacity: 0;
     transition: opacity 0.3s ease;
+    z-index: 20;
 }
 
-/* Показываем контролы при наведении на видео */
 #local-video-container:hover .call-controls {
     opacity: 1;
 }
 
-/* Контейнер для основных кнопок (микрофон, камера) */
 .main-controls {
     display: flex;
     gap: 15px;
 }
 
-/* Стили самой круглой кнопки-иконки */
 .control-button {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%; /* Делаем ее круглой */
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     border: none;
     cursor: pointer;
-    background-color: rgba(0, 0, 0, 0.5); /* Полупрозрачный фон */
+    background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
     transition: background-color 0.2s ease;
 }
 
-/* Центрирование SVG иконки внутри кнопки */
 .control-button img {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
 }
 
-/* Синий фон при наведении */
 .control-button:hover {
-    background-color: #007AFF;
+    background-color: var(--primary-accent);
 }
 
-/* Пурпурный фон в активном состоянии (микрофон/камера выключены) */
 .control-button.active {
     background-color: #ff4085;
 }
 
-/* Контейнер для чекбокса "Прослушать микрофон" */
 .mic-test-container {
+    position: absolute;
+    left: 15px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -357,4 +407,34 @@ video {
 
 #mic-test-checkbox {
     cursor: pointer;
+}
+
+/* =======================
+   6. СТИЛИ ПЛЕЙСХОЛДЕРА "НЕТ КАМЕРЫ"
+   ======================== */
+.video-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000; /* Черный фон, как у видео */
+    z-index: 5; /* Ниже чем у имени и контролов */
+    transition: opacity 0.3s ease;
+}
+
+.video-placeholder img {
+    width: 25%; /* Размер иконки относительно размера видео-окна */
+    max-width: 80px; /* Но не больше 80px */
+    height: auto;
+    opacity: 0.2; /* Прозрачность 20% */
+}
+
+/* Класс для скрытия плейсхолдера, когда видео доступно */
+.video-placeholder.hidden {
+    opacity: 0;
+    pointer-events: none; /* Чтобы нельзя было кликнуть на невидимый элемент */
 }

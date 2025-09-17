@@ -77,6 +77,16 @@ io.on('connection', (socket) => {
         // ДОБАВЛЕНО: Оповещаем всех в комнате, что пользователь ушел
         io.emit('user-disconnected', socket.id);
     });
+
+    socket.on('speaking', (payload) => {
+        // Просто пересылаем сообщение всем в комнате, кроме отправителя
+        socket.to(payload.roomName).emit('user_speaking', { userId: socket.id });
+    });
+
+    socket.on('stopped_speaking', (payload) => {
+        // Аналогично для остановки разговора
+        socket.to(payload.roomName).emit('user_stopped_speaking', { userId: socket.id });
+    });
 });
 
 server.listen(PORT, () => {

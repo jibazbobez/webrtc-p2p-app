@@ -58,6 +58,10 @@
                         <h4>Вы</h4>
                         <video id="local-video" autoplay muted></video>
                         
+                        <div class="video-placeholder">
+                            <img src="assets/icon_camera_off.svg" alt="Камера отключена">
+                        </div>
+                        
                         <!-- Контролы ДОЛЖНЫ БЫТЬ ЗДЕСЬ, ВНУТРИ video-container -->
                         <div id="call-controls" class="call-controls" style="display: none;">
                             <div class="mic-test-container">
@@ -83,7 +87,7 @@
     </main>
     
     <!-- Подключаем клиентскую библиотеку Socket.IO -->
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="socket.io.min.js"></script>
     <!-- Подключаем наш обновленный скрипт -->
     <script src="script.js"></script>
 </body>
