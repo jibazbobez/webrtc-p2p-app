@@ -13,7 +13,7 @@
 // --- 1. Константы и начальная настройка ---
 
 // Подключение к нашему сигнальному серверу.
-const socket = io('http://localhost:3000');
+const socket = io('https://webrtc-p2p-app.onrender.com');
 
 const ICON_PATHS = {
     micOn: 'assets/icon_micro.svg',
