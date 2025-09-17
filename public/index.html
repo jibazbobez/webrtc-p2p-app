@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Call - Прямые видеозвонки</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Подключаем новый файл стилей -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <main>
+        <!-- =======================
+        СЕКЦИЯ 1: HERO - Вход в комнату
+        ======================== -->
+        <section class="hero-section" id="join-section">
+            <div class="hero-content container">
+                <h1>Прямое соединение.</h1>
+                <h1>Мгновенный разговор.</h1>
+                <h2>Создайте защищенную комнату для P2P-видеозвонка и поделитесь ссылкой. Без регистрации и серверов-посредников.</h2>
+                
+                <div class="join-box">
+                    <p>Введите имя комнаты или используйте предложенное:</p>
+                    <div class="input-group">
+                        <input type="text" id="room-input" placeholder="Название комнаты...">
+                        <button id="regenerate-btn" title="Сгенерировать новое имя">
+                            <img src="assets/icon_randomize.svg" alt="Сгенерировать">
+                        </button>
+                        <button id="join-btn" class="cta-button primary">Войти в комнату</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =======================
+        СЕКЦИЯ 2: ВИДЕО - Сам звонок
+        ======================== -->
+        <section class="videos-section" id="videos-section" style="display: none;">
+            <div class="container">
+                <div id="room-name-container" class="room-name-container" style="display: none;">
+                    <p class="room-label">Название комнаты:</p>
+                    <div class="room-id-wrapper">
+                        <span id="room-name-text"></span>
+                        <button id="copy-link-btn" class="copy-button" title="Скопировать ссылку">
+                            <img src="assets/icon_copy.svg" alt="Копировать">
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="videos">
+                    <!-- ЭТО КЛЮЧЕВОЙ БЛОК -->
+                    <div class="video-container" id="local-video-container">
+                        <h4>Вы</h4>
+                        <video id="local-video" autoplay muted></video>
+                        
+                        <!-- Контролы ДОЛЖНЫ БЫТЬ ЗДЕСЬ, ВНУТРИ video-container -->
+                        <div id="call-controls" class="call-controls" style="display: none;">
+                            <div class="mic-test-container">
+                                <input type="checkbox" id="mic-test-checkbox">
+                                <label for="mic-test-checkbox">Прослушать свой микрофон</label>
+                            </div>
+                            <div class="main-controls">
+                                <!-- ИЗМЕНЕНО: Добавлены теги img, которые мы будем менять через JS -->
+                                <button id="mute-btn" class="control-button">
+                                    <img src="assets/icon_micro.svg" alt="Микрофон">
+                                </button>
+                                <button id="video-btn" class="control-button">
+                                    <img src="assets/icon_camera.svg" alt="Камера">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Сюда будут динамически добавляться видео других участников -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <!-- Подключаем клиентскую библиотеку Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Подключаем наш обновленный скрипт -->
+    <script src="script.js"></script>
+</body>
+</html>
