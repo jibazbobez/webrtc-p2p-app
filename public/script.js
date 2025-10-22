@@ -1,24 +1,22 @@
 // =================================================================
 //                    WebRTC P2P Call - script.js
-//                  Полная версия со всеми правками
+//                 Version with Improved ICE Config
 // =================================================================
 
-// --- 1. Подключение к сигнальному серверу ---
-// ИСПОЛЬЗУЕТСЯ ЛОКАЛЬНЫЙ СЕРВЕР ДЛЯ РАЗРАБОТКИ
-// ПЕРЕД ДЕПЛОЕМ ЗАМЕНИТЬ НА 'https://webrtc-p2p-app.onrender.com'
+// --- 1. Signaling Server Connection ---
 const socket = io('https://webrtc-p2p-app.onrender.com');
 
-// --- 2. Константы ---
+// --- 2. Constants ---
 const ICON_PATHS = {
     micOn: 'assets/icon_micro.svg',
     micOff: 'assets/icon_micro_off.svg',
     videoOn: 'assets/icon_camera.svg',
     videoOff: 'assets/icon_camera_off.svg'
 };
-const SPEAKING_THRESHOLD = 5; // Порог громкости для индикации
-const SPEAKING_TIMEOUT = 200; // мс тишины, после которых индикация пропадает
+const SPEAKING_THRESHOLD = 5; // Volume threshold for speaking indicator
+const SPEAKING_TIMEOUT = 200; // ms of silence before the indicator disappears
 
-// --- 3. Получение элементов DOM ---
+// --- 3. DOM Element Retrieval ---
 const joinSection = document.getElementById('join-section');
 const videosSection = document.getElementById('videos-section');
 const localVideo = document.getElementById('local-video');
@@ -27,14 +25,16 @@ const roomInput = document.getElementById('room-input');
 const joinBtn = document.getElementById('join-btn');
 const regenerateBtn = document.getElementById('regenerate-btn');
 const callControls = document.getElementById('call-controls');
+const homeBtnDesktop = document.getElementById('home-btn-desktop');
+const homeBtnMobile = document.getElementById('home-btn-mobile');
 const muteBtn = document.getElementById('mute-btn');
 const videoBtn = document.getElementById('video-btn');
-const micTestCheckbox = document.getElementById('mic-test-checkbox');
+const micTestBtn = document.getElementById('mic-test-btn');
 const roomNameContainer = document.getElementById('room-name-container');
 const roomNameText = document.getElementById('room-name-text');
 const copyLinkBtn = document.getElementById('copy-link-btn');
 
-// --- 4. Глобальные переменные ---
+// --- 4. Global Variables ---
 let localStream;
 let peerConnections = {};
 let roomName;
@@ -42,27 +42,53 @@ let audioContext, analyser, microphone, javascriptNode;
 let isSpeaking = false;
 let speakingTimer;
 
-const stunConfig = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+// MODIFIED: Old stunConfig replaced with new iceConfig
+const iceConfig = {
+  iceServers: [
+    // STUN servers (always available and reliable)
+    { 
+      urls: [
+        'stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302', 'stun:stun3.l.google.com:19302',
+        'stun:stun4.l.google.com:19302', 'stun:stun.sipnet.ru:3478',
+        'stun:stun.gmx.net:3478', 'stun:stun.ekiga.net:3478',
+        'stun:stun.fwdnet.net:3478', 'stun:stun.ideasip.com:3478',
+        'stun:stun.relay.metered.ca:80',
+      ] 
+    },
+    // TURN servers (used automatically when needed)
+    { urls: 'turn:global.relay.metered.ca:80', username: 'a8e62e5f4af6433293737a9c', credential: 'jr0+8ph9+zB56Xsy' },
+    { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'a8e62e5f4af6433293737a9c', credential: 'jr0+8ph9+zB56Xsy' },
+    { urls: 'turn:global.relay.metered.ca:443', username: 'a8e62e5f4af6433293737a9c', credential: 'jr0+8ph9+zB56Xsy' },
+    { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: 'a8e62e5f4af6433293737a9c', credential: 'jr0+8ph9+zB56Xsy' },
+    { urls: 'turn:141.144.195.147:8000?transport=tcp', username: '20250908', credential: 'SpehIEurpH573oTvpoHb' },
+    { urls: 'turn:185.158.112.58:8000?transport=tcp', username: '20250908', credential: 'SpehIEurpH573oTvpoHb' },
+    { urls: 'turn:turn.bistri.com:80', username: 'homeo', credential: 'homeo' }
+  ],
+  iceCandidatePoolSize: 20,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
+  iceTransportPolicy: 'all',
 };
 
-// --- 5. Логика генерации уникальных имен комнат ---
+// --- 5. Room Name Generation Logic ---
 const ADJECTIVES = [
     "Quick", "Quiet", "Bright", "Dark", "Neon", "Quantum", "Cosmic", 
-    "Stellar", "Secret", "Ancient", "Solar", "Lunar", "Icy", "Digital"
+    "Stellar", "Secret", "Ancient", "Solar", "Lunar", "Icy", "Digital",
+    "Silent", "Rapid", "Golden", "Iron", "Crystal", "Arctic", "Ethereal",
+    "Hidden", "Lost", "Final", "Prime", "Virtual", "Atomic", "Galactic"
 ];
 const NOUNS = [
     "Photon", "Proton", "Falcon", "Dragon", "Horizon", "Pixel", "Vector",
-    "Spectre", "Pulsar", "Module", "Crystal", "Vortex", "Stream", "Matrix"
+    "Spectre", "Pulsar", "Module", "Crystal", "Vortex", "Stream", "Matrix",
+    "Nebula", "Relay", "Cipher", "Odyssey", "Mirage", "Echo", "Apex",
+    "Oracle", "Nexus", "Spire", "Signal", "Fragment", "Core"
 ];
 
 function generateRoomName() {
     const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
     const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-    const num = Math.floor(100 + Math.random() * 900);
+    const num = Math.floor(1000 + Math.random() * 9000);
     return `${adj}-${noun}-${num}`;
 }
 
@@ -72,7 +98,7 @@ function setNewRoomName() {
 
 regenerateBtn.addEventListener('click', setNewRoomName);
 
-// --- 6. Логика входа в комнату и инициализации ---
+// --- 6. Room Entry and Initialization Logic ---
 async function joinRoom() {
     roomName = roomInput.value;
     if (!roomName) {
@@ -82,35 +108,33 @@ async function joinRoom() {
     window.location.hash = encodeURIComponent(roomName);
 
     try {
-        // Этап 1: Пытаемся получить видео и аудио
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.querySelector('#local-video-container .video-placeholder').classList.add('hidden');
     } catch (videoError) {
         console.warn("[MEDIA] Could not get video, trying audio only. Error:", videoError.name);
         try {
-            // Этап 2: Если видео не удалось, пытаемся получить только аудио
             localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         } catch (audioError) {
-            // Этап 3: Если и аудио не удалось, показываем ошибку
             console.error("[MEDIA] Could not get any media device.", audioError.name);
             alert('Could not get access to camera or microphone. Please check permissions and devices.');
             return;
         }
     }
 
-    // Если мы здесь, у нас есть хотя бы аудиопоток.
     joinSection.style.display = 'none';
     videosSection.style.display = 'block';
     callControls.style.display = 'flex';
     roomNameContainer.style.display = 'block';
     roomNameText.innerText = roomName;
+    muteBtn.title = "Mute microphone";
+    videoBtn.title = "Turn off camera";
 
     localVideo.srcObject = localStream;
 
-    setupAudioAnalysis(localStream); // Запускаем анализ громкости
+    setupAudioAnalysis(localStream);
 
     socket.emit('join-room', roomName);
-    updateVideoGrid();
+    updateVideoGrid(); 
 }
 
 joinBtn.addEventListener('click', joinRoom);
@@ -118,8 +142,14 @@ roomInput.addEventListener('keyup', (event) => {
     if (event.key === 'Enter') joinRoom();
 });
 
-// --- 7. Авто-вход по ссылке при загрузке страницы ---
+// --- 7. Auto-Join Logic on Page Load ---
 window.addEventListener('load', () => {
+    // ADDED: Age verification logic
+    if (!sessionStorage.getItem('ageVerified')) {
+        alert("If you are not 18+ years old, please leave this page.");
+        sessionStorage.setItem('ageVerified', 'true');
+    }
+
     if (window.location.hash) {
         const decodedRoomName = decodeURIComponent(window.location.hash.substring(1));
         roomInput.value = decodedRoomName;
@@ -129,7 +159,7 @@ window.addEventListener('load', () => {
     }
 });
 
-// --- 8. Логика управления звонком (микрофон, видео, тест) ---
+// --- 8. Call Control Logic (Mic, Video, Test) ---
 const toggleAudio = () => {
     const audioTrack = localStream.getAudioTracks()[0];
     if (audioTrack) {
@@ -137,6 +167,7 @@ const toggleAudio = () => {
         const micIcon = muteBtn.querySelector('img');
         micIcon.src = audioTrack.enabled ? ICON_PATHS.micOn : ICON_PATHS.micOff;
         muteBtn.classList.toggle('active', !audioTrack.enabled);
+        muteBtn.title = audioTrack.enabled ? "Mute microphone" : "Unmute microphone";
     }
 };
 
@@ -147,20 +178,23 @@ const toggleVideo = () => {
         const videoIcon = videoBtn.querySelector('img');
         videoIcon.src = videoTrack.enabled ? ICON_PATHS.videoOn : ICON_PATHS.videoOff;
         videoBtn.classList.toggle('active', !videoTrack.enabled);
-        // Показываем или скрываем плейсхолдер в зависимости от состояния видео
         document.querySelector('#local-video-container .video-placeholder').classList.toggle('hidden', videoTrack.enabled);
+        videoBtn.title = videoTrack.enabled ? "Turn off camera" : "Turn on camera";
     }
 };
 
-const handleMicTest = (event) => {
-    localVideo.muted = !event.target.checked;
+const handleMicTest = () => {
+    const isMuted = localVideo.muted;
+    localVideo.muted = !isMuted;
+    micTestBtn.classList.toggle('active', isMuted); 
+    console.log(`[CONTROL] Mic test listening ${isMuted ? 'ENABLED' : 'DISABLED'}`);
 };
 
 muteBtn.addEventListener('click', toggleAudio);
 videoBtn.addEventListener('click', toggleVideo);
-micTestCheckbox.addEventListener('change', handleMicTest);
+micTestBtn.addEventListener('click', handleMicTest);
 
-// --- 9. Логика копирования ссылки на комнату ---
+// --- 9. Copy Room Link Logic ---
 const copyRoomLink = () => {
     const link = `${window.location.origin}${window.location.pathname}#${encodeURIComponent(roomName)}`;
     navigator.clipboard.writeText(link).then(() => {
@@ -171,7 +205,7 @@ const copyRoomLink = () => {
 
 copyLinkBtn.addEventListener('click', copyRoomLink);
 
-// --- 10. Анализ громкости микрофона ---
+// --- 10. Microphone Volume Analysis ---
 function setupAudioAnalysis(stream) {
     if (!stream.getAudioTracks().length) return;
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -207,9 +241,9 @@ function setupAudioAnalysis(stream) {
     };
 }
 
-// --- 11. Основная WebRTC-логика ---
+// --- 11. Core WebRTC Logic ---
 function createPeerConnection(targetSocketId) {
-    const pc = new RTCPeerConnection(stunConfig);
+    const pc = new RTCPeerConnection(iceConfig);
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     pc.onicecandidate = event => {
@@ -219,64 +253,132 @@ function createPeerConnection(targetSocketId) {
     };
 
     pc.ontrack = event => {
-        let videoContainer = document.getElementById(`video-${targetSocketId}`);
-        if (!videoContainer) {
-            videoContainer = document.createElement('div');
-            videoContainer.id = `video-${targetSocketId}`;
-            videoContainer.className = 'video-container';
-            const newVideo = document.createElement('video');
-            newVideo.autoplay = true;
-            newVideo.playsInline = true;
-            const nameTag = document.createElement('h4');
-            nameTag.innerText = `User ${targetSocketId.substring(0, 4)}`;
-            const placeholder = document.createElement('div');
-            placeholder.className = 'video-placeholder';
-            const placeholderIcon = document.createElement('img');
-            placeholderIcon.src = 'assets/icon_camera_off.svg';
-            placeholder.appendChild(placeholderIcon);
-            videoContainer.append(nameTag, newVideo, placeholder);
-            videosContainer.appendChild(videoContainer);
+        handleRemoteStream(event.streams[0], targetSocketId);
+    };
 
-            newVideo.srcObject = event.streams[0];
-            const remoteStream = event.streams[0];
-            if (remoteStream.getVideoTracks().length > 0) {
-                newVideo.onloadedmetadata = () => placeholder.classList.add('hidden');
-            }
-            updateVideoGrid();
+    pc.oniceconnectionstatechange = () => {
+        if (['failed', 'disconnected', 'closed'].includes(pc.iceConnectionState)) {
+            console.warn(`[WebRTC] Connection with ${targetSocketId} lost. Requesting reconnect.`);
+            socket.emit('reconnect-request', { target: targetSocketId });
         }
     };
+    
     peerConnections[targetSocketId] = pc;
     return pc;
 }
 
-// --- 12. Обработка событий от сигнального сервера ---
+function handleRemoteStream(stream, targetSocketId) {
+    let videoContainer = document.getElementById(`video-${targetSocketId}`);
+    if (!videoContainer) {
+        videoContainer = document.createElement('div');
+        videoContainer.id = `video-${targetSocketId}`;
+        videoContainer.className = 'video-container';
+        
+        const newVideo = document.createElement('video');
+        newVideo.autoplay = true;
+        newVideo.playsInline = true;
+
+        const nameTag = document.createElement('h4');
+        nameTag.innerText = `User ${targetSocketId.substring(0, 4)}`;
+        
+        const placeholder = document.createElement('div');
+        placeholder.className = 'video-placeholder';
+        const placeholderIcon = document.createElement('img');
+        placeholderIcon.src = 'assets/icon_camera_off.svg';
+        placeholder.appendChild(placeholderIcon);
+
+        const freezeFrameCanvas = document.createElement('canvas');
+        freezeFrameCanvas.className = 'freeze-frame';
+
+        videoContainer.append(nameTag, newVideo, placeholder, freezeFrameCanvas);
+        videosContainer.appendChild(videoContainer);
+
+        const canvasContext = freezeFrameCanvas.getContext('2d');
+        newVideo.addEventListener('waiting', () => {
+            freezeFrameCanvas.width = newVideo.clientWidth;
+            freezeFrameCanvas.height = newVideo.clientHeight;
+            if (newVideo.videoWidth > 0) {
+                canvasContext.drawImage(newVideo, 0, 0, freezeFrameCanvas.width, freezeFrameCanvas.height);
+                freezeFrameCanvas.style.display = 'block';
+            }
+        });
+        newVideo.addEventListener('playing', () => {
+            freezeFrameCanvas.style.display = 'none';
+        });
+
+        updateVideoGrid();
+    }
+
+    const videoElement = videoContainer.querySelector('video');
+    const placeholderElement = videoContainer.querySelector('.video-placeholder');
+    videoElement.srcObject = stream;
+    
+    if (stream.getVideoTracks().length > 0) {
+        videoElement.onloadedmetadata = () => {
+            placeholderElement.classList.add('hidden');
+        };
+    } else {
+        placeholderElement.classList.remove('hidden');
+    }
+}
+
+// --- 12. Signaling Server Event Handlers ---
 socket.on('all-users', (otherUsers) => {
+    console.log('[SIGNAL] Received list of existing users:', otherUsers);
     otherUsers.forEach(userId => {
         const pc = createPeerConnection(userId);
         pc.createOffer()
             .then(offer => pc.setLocalDescription(offer))
-            .then(() => socket.emit('offer', { target: userId, sdp: pc.localDescription }));
+            .then(() => {
+                console.log(`[SIGNAL] Sending Offer to existing user ${userId}`);
+                socket.emit('offer', { target: userId, sdp: pc.localDescription });
+            })
+            .catch(error => console.error(`[ERROR] Failed to create Offer for ${userId}:`, error));
     });
 });
 
-socket.on('user-joined', (newUserId) => { /* Новичок инициирует offer, мы просто ждем */ });
+socket.on('user-joined', (newUserId) => {
+    console.log(`[SIGNAL] New user ${newUserId} has joined. Awaiting their Offer.`);
+});
 
 socket.on('offer', async (payload) => {
+    console.log(`[SIGNAL] Received Offer from ${payload.sender}. Creating Answer...`);
     const pc = createPeerConnection(payload.sender);
     await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
+    console.log(`[SIGNAL] Sending Answer to user ${payload.sender}`);
     socket.emit('answer', { target: payload.sender, sdp: pc.localDescription });
 });
 
 socket.on('answer', async (payload) => {
+    console.log(`[SIGNAL] Received Answer from ${payload.sender}.`);
     const pc = peerConnections[payload.sender];
     if (pc) await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
 });
 
 socket.on('ice-candidate', async (payload) => {
     const pc = peerConnections[payload.sender];
-    if (pc && payload.candidate) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+    if (pc && payload.candidate) {
+        try {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+        } catch (error) {
+            console.error(`[ERROR] Failed to add ICE candidate from ${payload.sender}:`, error);
+        }
+    }
+});
+
+socket.on('reconnect-with', (payload) => {
+    console.log(`[RECONNECT] Received reconnect request from ${payload.target}. Initiating new Offer.`);
+    if (peerConnections[payload.target]) {
+        peerConnections[payload.target].close();
+        delete peerConnections[payload.target];
+    }
+    const pc = createPeerConnection(payload.target);
+    pc.createOffer()
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => socket.emit('offer', { target: payload.target, sdp: pc.localDescription }))
+        .catch(error => console.error(`[ERROR] Failed to create Offer for reconnect to ${payload.target}:`, error));
 });
 
 socket.on('user_speaking', (payload) => {
@@ -290,6 +392,7 @@ socket.on('user_stopped_speaking', (payload) => {
 });
 
 socket.on('user-disconnected', (userId) => {
+    console.log(`[SIGNAL] User ${userId} has disconnected.`);
     if (peerConnections[userId]) {
         peerConnections[userId].close();
         delete peerConnections[userId];
@@ -302,20 +405,26 @@ socket.on('user-disconnected', (userId) => {
     clearTimeout(speakingTimer);
 });
 
-// --- 13. Логика управления видео-сеткой ---
+// --- 13. UI and Layout Management ---
+const goHome = () => {
+    window.location.href = '/p2p/'; 
+};
+
+if (homeBtnDesktop) homeBtnDesktop.addEventListener('click', goHome);
+if (homeBtnMobile) homeBtnMobile.addEventListener('click', goHome);
+
 function updateVideoGrid() {
-    const participantCount = Object.keys(peerConnections).length + 1;
-    if (participantCount === 1) {
-        videosContainer.classList.add('single-user-layout');
-        videosContainer.style.gridTemplateColumns = '';
-    } else {
-        videosContainer.classList.remove('single-user-layout');
-        let columns;
-        if (participantCount <= 3) {
-            columns = participantCount;
-        } else {
-            columns = Math.ceil(Math.sqrt(participantCount));
-        }
-        videosContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-    }
+    const participantCount = document.querySelectorAll('.video-container').length;
+    const videosEl = document.getElementById('videos');
+    videosEl.classList.toggle('single-user', participantCount <= 1);
 }
+
+// --- 14. Automatic Copyright Year Update ---
+document.addEventListener('DOMContentLoaded', () => {
+    const copyrightYearSpan = document.getElementById('copyright-year');
+    if (copyrightYearSpan) {
+        const startYear = 2025;
+        const currentYear = new Date().getFullYear();
+        copyrightYearSpan.textContent = (currentYear > startYear) ? `${startYear}–${currentYear}` : startYear.toString();
+    }
+});
