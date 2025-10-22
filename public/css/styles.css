@@ -1,0 +1,683 @@
+/* ===================================================================
+//                 WebRTC P2P Call - styles.css
+// =================================================================== */
+
+/* =======================
+   1. GLOBAL STYLES AND VARIABLES
+   ======================== */
+:root {
+    --bg-color: #121212;
+    --surface-color: #1E1E1E;
+    --primary-accent: #007AFF;
+    --text-primary: #FFFFFF;
+    --text-secondary: #B3B3B3;
+    --border-color: #333333;
+    --font-family: 'Inter', sans-serif;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    background-image: url('../assets/hero-background.webp');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto; 
+}
+
+.container {
+    max-width: 90%;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* =======================
+   2. ENTER SECTION (HERO)
+   ======================== */
+.hero-section {
+    flex-grow: 1; 
+    display: flex;
+    align-items: center;
+    text-align: center;
+    padding: 20px 0;
+    
+    position: relative;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(18, 18, 18, 0.5);
+    z-index: 1;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+.hero-content h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 20px;
+}
+
+.hero-content h2 {
+    font-size: 1.25rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    max-width: 650px;
+    margin: 0 auto 40px;
+}
+
+.join-box {
+    max-width: 600px;
+    margin: 40px auto 0;
+    background-color: var(--surface-color);
+    padding: 30px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.join-box p {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.room-name-wrapper {
+    display: flex;
+    flex-grow: 1;
+    min-width: 250px;
+    gap: 10px;
+}
+
+#room-input {
+    flex-grow: 1;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: var(--font-family);
+    min-width: 150px;
+}
+
+#room-input:focus {
+    outline: none;
+    border-color: var(--primary-accent);
+}
+
+.cta-button {
+    display: inline-block;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.cta-button.primary {
+    background-color: var(--primary-accent);
+    color: var(--text-primary);
+    padding: 14px 24px;
+    font-size: 1rem;
+}
+
+.cta-button.primary:hover {
+    background-color: #0056b3;
+}
+
+#regenerate-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#regenerate-btn:hover {
+    border-color: var(--text-primary);
+}
+
+#regenerate-btn img {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.4s ease;
+}
+
+#regenerate-btn:hover img {
+    transform: rotate(360deg);
+}
+
+/* =======================
+   3. VIDEO CALL SECTION
+   ======================== */
+.videos-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+}
+
+.videos-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    backdrop-filter: blur(30px);
+    background-color: rgba(18, 18, 18, 0.5);
+    z-index: 1;
+}
+
+.room-name-container {
+    text-align: center;
+    margin: 20px 0 15px 0;
+    flex-shrink: 0;
+
+    position: relative;
+    z-index: 2;
+}
+
+.room-label {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.room-id-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--surface-color);
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+#room-name-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.copy-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.copy-button img {
+    width: 20px;
+    height: 20px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.copy-button:hover img {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.copy-button::after {
+    content: 'Скопировано!';
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-accent);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, bottom 0.3s ease;
+}
+
+.copy-button.copied::after {
+    opacity: 1;
+    bottom: 130%;
+}
+
+/* =======================
+   4. VIDEO GRID STYLES
+   ======================== */
+#videos {
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    
+    gap: 15px; 
+    padding: 15px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+
+    position: relative;
+    z-index: 2;
+}
+
+#videos.single-user-layout {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.video-container {
+    display: flex;
+    flex-direction: column;
+    background-color: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 4 / 3;
+    min-width: 0; 
+}
+
+#videos.single-user-layout .video-container {
+    width: 70vw;
+    max-width: 960px;
+    height: auto;
+}
+
+.video-container h4 {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    bottom: auto;
+    margin: 0;
+    padding: 2px 8px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    z-index: 10;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+}
+
+.video-container.speaking {
+    box-shadow: 0 0 0 3px var(--primary-accent);
+    animation: pulse 1.5s ease-out infinite alternate;
+}
+
+@keyframes pulse {
+    from {
+        box-shadow: 0 0 0 3px var(--primary-accent);
+    }
+    to {
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);
+    }
+}
+
+#videos.single-user {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#videos.single-user .video-container {
+    width: 70vw;
+    max-width: 960px;
+    height: auto;
+}
+
+.freeze-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+    display: none;
+    z-index: 6; 
+}
+
+/* =======================
+   5. CONTROL STYLES
+   ======================== */
+.call-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 20;
+}
+
+#local-video-container {
+    position: relative;
+    order: 1;
+}
+
+#local-video-container:hover .call-controls {
+    opacity: 1;
+}
+
+.main-controls {
+    display: flex;
+    gap: 15px;
+}
+
+.control-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.control-button img {
+    width: 22px;
+    height: 22px;
+}
+
+.control-button:hover {
+    background-color: var(--primary-accent);
+}
+
+.control-button.active {
+    background-color: #ff4085;
+}
+
+.mic-test-container {
+    display: flex;
+}
+
+.mic-test-container label {
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+#mic-test-checkbox {
+    cursor: pointer;
+}
+
+.home-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+}
+
+#home-btn-mobile {
+    display: none;
+}
+
+/* =======================
+   6. "NO CAMERA" PLACEHOLDER STYLES
+   ======================== */
+.video-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    z-index: 5;
+    transition: opacity 0.3s ease;
+}
+
+.video-placeholder img {
+    width: 25%;
+    max-width: 80px;
+    height: auto;
+    opacity: 0.2;
+}
+
+.video-placeholder.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* =======================
+   7. MOBILE ADAPTATION
+   ======================== */
+@media (max-width: 768px) {
+
+    #videos {
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        
+        gap: 15px; 
+        padding: 15px;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+
+        position: relative;
+        z-index: 2;
+    }
+
+    .container {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 0 10px;
+    }
+
+    .home-button {
+        display: none;
+    }
+
+    #home-btn-mobile {
+        display: flex;
+    }
+
+    .call-controls {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        justify-content: center; 
+        opacity: 1;
+        background-color: rgba(18, 18, 18, 0.9);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--border-color);
+        z-index: 100;
+        padding: 12px 15px;
+    }
+
+    .control-button {
+        width: 48px;
+        height: 48px;
+    }
+
+    .mic-test-container label {
+        display: none;
+    }
+
+    #local-video-container:hover .call-controls {
+        opacity: 1;
+    }
+
+    .hero-content h1 {
+        font-size: 2rem;
+        margin-bottom: 15px;
+    }
+
+    .hero-content h2 {
+        font-size: 1rem;
+        margin-bottom: 30px;
+    }
+
+    .input-group {
+        flex-wrap: wrap;
+    }
+
+    #join-btn {
+        width: 100%;
+        margin-top: 10px;
+        order: 3;
+    }
+}
+
+/* =======================
+   8. FOOTER STYLES
+   ======================== */
+.main-footer {
+    width: 100%;
+    padding: 30px 20px;
+    text-align: center;
+    flex-shrink: 0;
+    background-color: rgba(18, 18, 18, 0.5);
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+}
+
+.donate-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    padding: 10px 20px;
+    font-weight: 600;
+}
+
+.donate-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px 30px;
+}
+
+.social-link-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.social-link-item:hover {
+    color: var(--text-primary);
+}
+
+.social-icon {
+    height: 22px;
+    width: 22px;
+    filter: brightness(0) invert(1); 
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.social-link-item:hover .social-icon {
+    opacity: 1;
+}
+
+.social-text {
+    font-weight: 500;
+}
+
+.main-footer p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.main-footer p a {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.main-footer p a:hover {
+    color: var(--text-secondary);
+    text-decoration: underline;
+}
+
+#join-section[style*="display: none"] ~ .main-footer .donate-button,
+#join-section[style*="display: none"] ~ .main-footer .social-links {
+    display: none;
+}
+
+#join-section[style*="display: none"] ~ .main-footer {
+    padding-top: 15px;
+    padding-bottom: 15px;
+}

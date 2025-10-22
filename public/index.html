@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO: Optimized Title & Meta Description -->
+    <title>P2P Call - Secure & Anonymous Peer-to-Peer Video Calls</title>
+    <meta name="description" content="Create a free, secure, and anonymous P2P video call with one click. No registration, no servers. Your conversation is direct and private. Powered by WebRTC.">
+
+    <!-- SEO: Canonical URL -->
+    <link rel="canonical" href="https://andrewr.online/p2p/" />
+
+    <!-- SEO: Open Graph Meta Tags for Social Sharing -->
+    <meta property="og:title" content="P2P Call – Secure, Private & Serverless Video Chat" />
+    <meta property="og:description" content="Create a free and anonymous P2P video call with one click. No registration, no servers. Your conversation is direct and private." />
+    <meta property="og:image" content="https://andrewr.online/p2p/assets/social-preview.png" /> <!-- IMPORTANT: Create this 1200x630px image -->
+    <meta property="og:url" content="https://andrewr.online/p2p/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Fonts and Styles -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Favicon Links -->
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg">
+    <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon/favicon-96x96.png">
+    <link rel="shortcut icon" href="assets/favicon/favicon.ico">
+    <link rel="manifest" href="assets/favicon/site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="Andrew R.">
+    
+    <!-- SEO: Schema.org Microdata for Software Application -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "P2P Video Call",
+      "url": "https://andrewr.online/p2p/",
+      "applicationCategory": "CommunicationApplication",
+      "operatingSystem": "Web",
+      "description": "A free, secure, and serverless peer-to-peer video calling application that requires no registration.",
+      "author": {
+        "@type": "Person",
+        "name": "Andrew R."
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0"
+      }
+    }
+    </script>
+</head>
+<body>
+
+    <main>
+        <!-- =======================
+        SECTION 1: HERO - Room Entry
+        ======================== -->
+        <section class="hero-section" id="join-section">
+
+            <div class="hero-content container">
+                <h1>Direct Connection.</h1>
+                <h1>Private Conversation.</h1>
+                <h2>Create secure P2P video call room and share the link. No registration, no intermediary servers.</h2>
+                
+                <div class="join-box">
+                    <p>Enter a room name or use the suggested one:</p>
+                    <div class="input-group">
+                        <div class="room-name-wrapper">
+                            <input type="text" id="room-input" placeholder="Room name...">
+                            <button id="regenerate-btn" title="Generate new name">
+                                <img src="assets/icon_randomize.svg" alt="Generate">
+                            </button>
+                        </div>
+                        <button id="join-btn" class="cta-button primary">Join Room</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =======================
+        SECTION 2: VIDEO - The Call
+        ======================== -->
+        <section class="videos-section" id="videos-section" style="display: none;">
+            <button id="home-btn-desktop" class="control-button home-button" title="Back to Home Screen">
+                <img src="assets/icon_home.svg" alt="Home">
+            </button>
+
+            <div class="container">
+                <div id="room-name-container" class="room-name-container" style="display: none;">
+                    <!-- The wrapper is now the only direct child -->
+                    <div class="room-id-wrapper">
+                        <!-- The label is now INSIDE the wrapper -->
+                        <p class="room-label">Room Name:</p>
+                        <span id="room-name-text"></span>
+                        <button id="copy-link-btn" class="copy-button" title="Copy link">
+                            <img src="assets/icon_copy.svg" alt="Copy">
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="videos">
+                    <div class="video-container" id="local-video-container">
+                        <h4>You</h4>
+                        <video id="local-video" autoplay muted playsinline></video>
+
+                        <div class="video-placeholder">
+                            <img src="assets/icon_camera_off.svg" alt="Camera is off">
+                        </div>
+
+                        <div id="call-controls" class="call-controls" style="display: none;">
+                            <button id="home-btn-mobile" class="control-button" title="Back to Home Screen">
+                                <img src="assets/icon_home.svg" alt="Home">
+                            </button>
+                            <div class="mic-test-container">
+                                <button id="mic-test-btn" class="control-button" title="Listen to your microphone">
+                                    <img src="assets/icon_headphones.svg" alt="Listen to microphone">
+                                </button>
+                            </div>
+                            <div class="main-controls">
+                                <button id="mute-btn" class="control-button" title="Mute microphone">
+                                    <img src="assets/icon_micro.svg" alt="Microphone">
+                                </button>
+                                <button id="video-btn" class="control-button" title="Turn off camera">
+                                    <img src="assets/icon_camera.svg" alt="Camera">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="main-footer">
+            <div class="footer-content">
+                <!-- Donation button -->
+                <a href="https://hipolink.net/andrewr/tips" target="_blank" rel="noopener noreferrer" class="cta-button secondary donate-button">Support the Project</a>
+
+                <!-- Copyright line -->
+                <p>© <span id="copyright-year">2025</span> <a href="https://www.andrewr.online" target="_blank" rel="noopener noreferrer">Andrew R. Tools</a>. All Rights Reserved.</p>
+            </div>
+        </footer>
+
+    </main>
+
+    <script src="socket.io.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
