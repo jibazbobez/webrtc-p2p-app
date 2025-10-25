@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
     socket.on('join-room', (roomName) => {
         console.log(`[JOIN] User ${socket.id} is attempting to join room: ${roomName}`);
 
-        // --- MODIFICATION START: Limit users to 2 per room ---
+        // --- Limit users to 2 per room ---
         const clientsInRoom = io.sockets.adapter.rooms.get(roomName);
         const numClients = clientsInRoom ? clientsInRoom.size : 0;
         console.log(`[JOIN] There are already ${numClients} user(s) in room ${roomName}.`);
@@ -46,7 +46,6 @@ io.on('connection', (socket) => {
             socket.emit('room-full');
             return;
         }
-        // --- MODIFICATION END ---
 
         // If the room is not full, proceed with joining
         const otherUsers = clientsInRoom ? Array.from(clientsInRoom) : [];
