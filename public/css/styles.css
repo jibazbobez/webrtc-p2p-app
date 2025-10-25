@@ -54,7 +54,7 @@ main {
 
 .container {
     width: 100%;
-    max-width: 80%; /* Increased max-width for better use of space */
+    max-width: 80%;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -205,12 +205,12 @@ main {
 
 /* --- 3.1 Main Layout Structure --- */
 .videos-section {
-    flex-grow: 1; /* Take all available vertical space */
+    flex-grow: 1;
     display: flex;
-    flex-direction: column; /* Stack children: room-name -> videos -> controls */
+    flex-direction: column;
     min-height: 0;
     position: relative;
-    padding: 10px 0; /* Vertical padding */
+    padding: 10px 0;
     width: 100%;
 }
 
@@ -239,7 +239,7 @@ main {
 .room-name-container {
     text-align: center;
     margin-bottom: 15px;
-    flex-shrink: 0; /* Prevent this from shrinking */
+    flex-shrink: 0;
 }
 
 .room-label {
@@ -311,7 +311,7 @@ main {
 
 /* --- 3.3 Main Video Area (#videos) --- */
 #videos {
-    flex-grow: 1; /* This is the "blue box", it takes all available middle space */
+    flex-grow: 1;
     display: flex;
     gap: 20px;
     min-height: 0;
@@ -320,8 +320,8 @@ main {
 }
 
 .video-container {
-    flex: 1; /* Each child takes equal space */
-    min-width: 0; /* Flexbox safety */
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     background-color: #000;
@@ -334,7 +334,7 @@ main {
 video {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Fill the container, may crop video */
+    object-fit: cover;
     background-color: #000;
 }
 
@@ -354,21 +354,21 @@ video {
 
 /* --- 3.4 Desktop Presenter Mode (Screen Share) --- */
 #videos.presenter-mode {
-    flex-direction: row; /* Switch to horizontal layout */
+    flex-direction: row;
+    gap: 20px;
 }
 
 #presenter-area {
-    flex: 3; /* Screen share takes 75% of the space */
+    flex: 3;
     display: flex;
     min-width: 0;
 }
 
 #participant-sidebar {
-    flex: 1; /* Participant videos take 25% of the space */
+    flex: 1;
     display: flex;
-    flex-direction: column; /* Stack participants vertically */
+    flex-direction: column;
     gap: 20px;
-    padding-left: 20px;
     min-width: 0;
     max-height: 100%;
     overflow-y: auto;
@@ -377,11 +377,11 @@ video {
 #participant-sidebar .video-container {
     width: 100%;
     height: auto;
-    aspect-ratio: 16 / 9; /* Ensure sidebar videos have a consistent shape */
+    aspect-ratio: 16 / 9;
 }
 
 #presenter-area .video-container video {
-    object-fit: contain; /* Ensures the whole screen is visible, with black bars if needed */
+    object-fit: contain;
 }
 
 
@@ -441,12 +441,12 @@ video {
 
 /* --- 3.6 New Main Controls Bar --- */
 .main-controls-container {
-    flex-shrink: 0; /* Prevent this from shrinking */
+    flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 15px;
-    padding-top: 20px; /* Space between videos and controls */
+    padding-top: 20px;
     position: relative;
     z-index: 2;
 }
@@ -478,8 +478,14 @@ video {
     border-color: var(--primary-accent);
 }
 
+#feature-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--surface-color);
+}
+
 .leave-button {
-    background-color: #ff4085; /* Red color for leaving */
+    background-color: #ff4085;
     border-color: #ff4085;
 }
 .leave-button:hover {
@@ -506,9 +512,11 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
    ================================== */
 .main-footer {
     width: 100%;
-    padding: 20px;
+    padding: 10px;
     text-align: center;
     flex-shrink: 0;
+    backdrop-filter: blur(30px);
+    background-color: rgba(18, 18, 18, 0.5);
 }
 
 .main-footer p {
@@ -532,8 +540,8 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
 
 /* Hide elements on the hero screen that are not the copyright */
 #join-section:not([style*="display: none"]) ~ .main-footer {
-     background-color: rgba(18, 18, 18, 0.5);
-     padding: 30px 20px;
+    background-color: rgba(18, 18, 18, 0.5);
+    padding: 30px 20px;
 }
 .footer-content {
     display: flex;
@@ -625,12 +633,47 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
     color: var(--text-primary);
 }
 
+/* ==================================
+   6. FULL SCREEN MODE
+   ================================== */
+.fullscreen-btn {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    z-index: 15;
+
+    width: 36px;
+    height: 36px;
+
+    background-color: transparent;
+    border: none;
+
+    opacity: 0;
+    pointer-events: none;
+    
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.fullscreen-btn img {
+    width: 22px;
+    height: 22px;
+}
+
+.video-container:hover .fullscreen-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.fullscreen-btn:hover {
+    background-color: transparent;
+    transform: scale(1.15);
+}
+
 
 /* ==================================
-   6. RESPONSIVE & MOBILE STYLES
+   7. RESPONSIVE & MOBILE STYLES
    ================================== */
 @media (max-width: 768px) {
-    /* General styles for small screens */
     .hero-content h1 {
         font-size: 2rem;
         margin-bottom: 15px;
@@ -662,7 +705,7 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
         }
 
         #videos {
-            flex-direction: column; /* Stack videos vertically */
+            flex-direction: column;
             padding: 10px;
             gap: 10px;
         }
@@ -679,58 +722,51 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
         }
         .room-label,
         #room-name-text {
-            font-size: 0.9rem; /* Reduced font size to fit on one line */
+            font-size: 0.9rem;
         }
     }
 
     /* --- Landscape Mode --- */
     @media (orientation: landscape) {
         .videos-section {
-            flex-direction: row; /* Videos left, controls right */
-            align-items: stretch; /* Make children fill height */
+            flex-direction: row;
+            align-items: stretch;
             padding: 10px;
-            gap: 10px; /* Add gap between video area and controls */
+            gap: 10px;
         }
 
-        /* MODIFICATION START: Fix video container layout */
         .videos-section > .container {
-            flex-grow: 1; /* Allow container to take all available width */
-            min-width: 0; /* Prevent flex overflow */
+            flex-grow: 1;
+            min-width: 0;
             display: flex;
-            flex-direction: column; /* Stack room name, videos, and copyright vertically */
+            flex-direction: column;
         }
         #videos {
-            flex-grow: 1; /* Allow video grid to take all available height */
+            flex-grow: 1;
             min-height: 0;
             padding: 0;
             gap: 10px;
         }
-        /* MODIFICATION END */
 
-        /* MODIFICATION START: Position controls on the right */
         .main-controls-container {
-            flex-direction: column; /* Stack controls vertically */
+            flex-direction: column;
             justify-content: center;
-            width: auto; /* Let width be determined by content */
+            width: auto;
             padding: 0 10px;
             gap: 12px;
-            flex-shrink: 0; /* Prevent controls from shrinking */
+            flex-shrink: 0;
         }
-        /* MODIFICATION END */
-        
-        /* MODIFICATION START: Handle copyright visibility and position */
-        /* Hide the original footer in this specific view */
+
         .main-footer {
             display: none;
         }
 
-        /* Create a new copyright notice using a pseudo-element */
         .videos-section > .container::after {
             content: '© 2025 Andrew R. Tools. All Rights Reserved.';
             display: block;
             text-align: center;
-            padding-top: 8px; /* Space between videos and copyright */
-            font-size: 0.7rem; /* Make font smaller */
+            padding-top: 8px;
+            font-size: 0.7rem;
             color: var(--text-secondary);
         }
     }
