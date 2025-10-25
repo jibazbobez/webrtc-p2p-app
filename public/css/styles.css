@@ -630,25 +630,50 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
    6. RESPONSIVE & MOBILE STYLES
    ================================== */
 @media (max-width: 768px) {
+    /* General styles for small screens */
+    .hero-content h1 {
+        font-size: 2rem;
+        margin-bottom: 15px;
+    }
+
+    .hero-content h2 {
+        font-size: 1rem;
+        margin-bottom: 30px;
+    }
+
+    .input-group {
+        flex-wrap: wrap;
+    }
+
+    #join-btn {
+        width: 100%;
+        margin-top: 10px;
+        order: 3;
+    }
+    
+    .container {
+        padding: 0 10px;
+    }
 
     /* --- Portrait Mode --- */
     @media (orientation: portrait) {
-        .videos-section {
-            padding: 10px 0;
+        .videos-section > .container {
+            padding: 0;
         }
+
         #videos {
             flex-direction: column; /* Stack videos vertically */
             padding: 10px;
             gap: 10px;
         }
+
         .main-controls-container {
             width: 100%;
-            padding: 12px 10px 5px 10px; /* MODIFICATION: Reduced bottom padding to close gap */
+            padding: 12px 10px 5px 10px;
             background-color: rgba(18, 18, 18, 0.9);
             backdrop-filter: blur(8px);
         }
 
-        /* MODIFICATION START: Fix room name font wrap */
         .room-id-wrapper {
             padding: 4px 10px;
         }
@@ -656,7 +681,6 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
         #room-name-text {
             font-size: 0.9rem; /* Reduced font size to fit on one line */
         }
-        /* MODIFICATION END */
     }
 
     /* --- Landscape Mode --- */
@@ -709,6 +733,5 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
             font-size: 0.7rem; /* Make font smaller */
             color: var(--text-secondary);
         }
-        /* MODIFICATION END */
     }
 }
