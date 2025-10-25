@@ -12,11 +12,9 @@ const app = express();
 const server = http.createServer(app);
 
 // Initialize Socket.IO with CORS settings.
-// IMPORTANT: For production, change origin to your specific domain (e.g., "https://p2p.andrewr.online")
-// For development, "*" is fine.
 const io = new Server(server, {
     cors: {
-        origin: "*", 
+        origin: "*", // IMPORTANT: For production, change this to your specific domain
         methods: ["GET", "POST"]
     }
 });
@@ -33,69 +31,63 @@ io.on('connection', (socket) => {
 
     // --- Room Management Events ---
 
-    // Event: A user wants to join a specific room
     socket.on('join-room', (roomName) => {
         console.log(`[JOIN] User ${socket.id} is attempting to join room: ${roomName}`);
 
-        // Get the list of clients already in the room
+        // --- MODIFICATION START: Limit users to 2 per room ---
         const clientsInRoom = io.sockets.adapter.rooms.get(roomName);
+        const numClients = clientsInRoom ? clientsInRoom.size : 0;
+        console.log(`[JOIN] There are already ${numClients} user(s) in room ${roomName}.`);
+
+        // Check if the room is full
+        if (numClients >= 2) {
+            console.log(`[REJECT] Room ${roomName} is full. Rejecting user ${socket.id}.`);
+            // Notify the client that the room is full and stop further execution
+            socket.emit('room-full');
+            return;
+        }
+        // --- MODIFICATION END ---
+
+        // If the room is not full, proceed with joining
         const otherUsers = clientsInRoom ? Array.from(clientsInRoom) : [];
-        console.log(`[JOIN] There are already ${otherUsers.length} user(s) in room ${roomName}.`);
         
-        // The user joins the room
         socket.join(roomName);
         console.log(`[JOIN] User ${socket.id} successfully joined room: ${roomName}`);
 
-        // Inform the new user about all other users already in the room.
-        // The new user will be the one to initiate the connection offers.
+        // Send the list of existing users to the new user
         console.log(`[SIGNAL] Emitting 'all-users' to ${socket.id} with data:`, otherUsers);
         socket.emit('all-users', otherUsers);
 
-        // Inform all other users in the room that a new user has joined.
-        // They will wait for an offer from the new user.
+        // Announce the new user to others in the room
         console.log(`[SIGNAL] Emitting 'user-joined' to room ${roomName} for new user ${socket.id}`);
         socket.to(roomName).emit('user-joined', socket.id);
     });
 
     // --- WebRTC Signaling Events (Proxying) ---
 
-    // Event: Forward an offer from a sender to a target user
     socket.on('offer', (payload) => {
         console.log(`[SIGNAL] Relaying 'offer' from ${socket.id} to ${payload.target}`);
-        io.to(payload.target).emit('offer', {
-            sdp: payload.sdp,
-            sender: socket.id
-        });
+        io.to(payload.target).emit('offer', { sdp: payload.sdp, sender: socket.id });
     });
 
-    // Event: Forward an answer from a sender to a target user
     socket.on('answer', (payload) => {
         console.log(`[SIGNAL] Relaying 'answer' from ${socket.id} to ${payload.target}`);
-        io.to(payload.target).emit('answer', {
-            sdp: payload.sdp,
-            sender: socket.id
-        });
+        io.to(payload.target).emit('answer', { sdp: payload.sdp, sender: socket.id });
     });
     
-    // Event: Forward an ICE candidate from a sender to a target user
     socket.on('ice-candidate', (payload) => {
-        // This can be very noisy, so it's often commented out in production.
+        // Logging for ICE candidates can be very verbose, so it's commented out by default
         // console.log(`[SIGNAL] Relaying 'ice-candidate' from ${socket.id} to ${payload.target}`);
-        io.to(payload.target).emit('ice-candidate', {
-            candidate: payload.candidate,
-            sender: socket.id
-        });
+        io.to(payload.target).emit('ice-candidate', { candidate: payload.candidate, sender: socket.id });
     });
 
     // --- Speaking Indication Events ---
 
-    // Event: A user has started speaking
     socket.on('speaking', (payload) => {
         // console.log(`[ACTIVITY] User ${socket.id} in room ${payload.roomName} started speaking.`);
         socket.to(payload.roomName).emit('user_speaking', { userId: socket.id });
     });
 
-    // Event: A user has stopped speaking
     socket.on('stopped_speaking', (payload) => {
         // console.log(`[ACTIVITY] User ${socket.id} in room ${payload.roomName} stopped speaking.`);
         socket.to(payload.roomName).emit('user_stopped_speaking', { userId: socket.id });
@@ -103,33 +95,56 @@ io.on('connection', (socket) => {
 
     // --- Self-Healing and Reconnection Events ---
 
-    // Event: A client's connection failed, and they are requesting a reconnect
     socket.on('reconnect-request', (payload) => {
         console.log(`[RECONNECT] User ${socket.id} requests reconnect with ${payload.target}`);
-        // Instruct the other user to initiate a new connection with the requester
         io.to(payload.target).emit('reconnect-with', { target: socket.id });
     });
 
-    // Event: A client is periodically sending its list of known peers for synchronization
     socket.on('sync-room', (payload) => {
         const clientsInRoom = io.sockets.adapter.rooms.get(payload.roomName);
         if (!clientsInRoom) return;
-
+        
         const allUserIds = Array.from(clientsInRoom);
         const knownPeers = payload.knownPeers;
-        
-        // Find peers that the client doesn't know about
         const missingPeers = allUserIds.filter(userId => !knownPeers.includes(userId) && userId !== socket.id);
-
+        
         if (missingPeers.length > 0) {
             console.log(`[SYNC] User ${socket.id} is missing ${missingPeers.length} peers. Sending 'add-peers'.`);
             socket.emit('add-peers', { peers: missingPeers });
         }
     });
 
+    // --- Screen Share Management Events ---
+    
+    socket.on('screen_share_request', ({ roomName, sharerName }) => {
+        console.log(`[SCREEN] User ${socket.id} (${sharerName}) requested to share screen in room ${roomName}.`);
+        // We broadcast this request to the entire room. The current sharer's client will handle it.
+        socket.to(roomName).emit('screen_share_permission_request', { 
+            requesterId: socket.id, 
+            requesterName: sharerName 
+        });
+    });
+
+    socket.on('screen_share_permission_granted', ({ roomName, targetId }) => {
+        console.log(`[SCREEN] Permission granted by ${socket.id} to ${targetId}.`);
+        // Tell the original requester that they have a "token" to start sharing
+        io.to(targetId).emit('screen_share_token_granted');
+    });
+
+    socket.on('user_started_sharing', ({ roomName }) => {
+        console.log(`[SCREEN] User ${socket.id} is now the active sharer in room ${roomName}.`);
+        // Inform everyone in the room (including the sharer) who is now presenting
+        io.to(roomName).emit('current_sharer_updated', { sharerId: socket.id });
+    });
+
+    socket.on('user_stopped_sharing', ({ roomName }) => {
+        console.log(`[SCREEN] User ${socket.id} stopped sharing in room ${roomName}.`);
+        // Inform everyone that no one is sharing anymore
+        io.to(roomName).emit('current_sharer_updated', { sharerId: null });
+    });
+
     // --- Disconnect Event ---
     
-    // Event: A user has disconnected from the server
     socket.on('disconnect', () => {
         console.log(`[CONNECTION] User disconnected: ${socket.id}`);
         // Inform all other connected clients that this user has left
