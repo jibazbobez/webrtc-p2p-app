@@ -45,7 +45,7 @@
                                 <img src="assets/icon_randomize.svg" alt="Generate">
                             </button>
                         </div>
-                        <button id="join-btn" class="cta-button primary">Join Room</button>
+                        <button id="join-btn" class="cta-button primary">Join the Room</button>
                     </div>
                 </div>
             </div>
@@ -81,17 +81,19 @@
                     <!-- Local user's video container -->
                     <div class="video-container" id="local-video-container">
                         <h4>You</h4>
+                        <button class="control-button fullscreen-btn" title="Go Fullscreen">
+                            <img src="assets/icon_fullscreen.svg" alt="Toggle Fullscreen">
+                        </button>
                         <video id="local-video" autoplay muted playsinline></video>
                         <div class="video-placeholder">
                             <img src="assets/icon_camera_off.svg" alt="Camera is off">
                         </div>
-                        <!-- NOTE: The old #call-controls div has been completely removed from here -->
                     </div>
                 </div>
 
             </div>
 
-            <!-- NEW: Global controls container, placed outside the main content container -->
+            <!-- Global controls container, placed outside the main content container -->
             <div id="main-controls-container" class="main-controls-container" style="display: none;">
                 <button id="mic-test-btn" class="control-button" title="Listen to your microphone">
                     <img src="assets/icon_headphones.svg" alt="Listen to microphone">
@@ -103,7 +105,6 @@
                 </button>
             
                 <button id="leave-btn" class="control-button leave-button" title="Leave call">
-                    <!-- NOTE: You need to add 'icon_leave.svg' to your assets folder -->
                     <img src="assets/icon_leave.svg" alt="Leave call">
                 </button>
             
