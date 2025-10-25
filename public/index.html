@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
+    <!-- English SEO and Title -->
     <title>P2P Call - Secure & Anonymous Peer-to-Peer Video Calls</title>
     <meta name="description" content="Create a free, secure, and anonymous P2P video call with one click. No registration, no servers. Your conversation is direct and private. Powered by WebRTC.">
     <meta name="robots" content="noindex, nofollow">
@@ -26,15 +27,14 @@
 <body>
 
     <main>
-        <!-- =======================
-        SECTION 1: HERO - Room Entry
-        ======================== -->
+        <!-- =============================================
+        SECTION 1: HERO - Room Entry Form
+        ============================================== -->
         <section class="hero-section" id="join-section">
-
             <div class="hero-content container">
                 <h1>Direct Connection.</h1>
                 <h1>Private Conversation.</h1>
-                <h2>Create secure P2P video call room and share the link. No registration, no intermediary servers.</h2>
+                <h2>Create a secure P2P video call room and share the link. No registration, no intermediary servers.</h2>
                 
                 <div class="join-box">
                     <p>Enter a room name or use the suggested one:</p>
@@ -51,19 +51,17 @@
             </div>
         </section>
 
-        <!-- =======================
-        SECTION 2: VIDEO - The Call
-        ======================== -->
+        <!-- =============================================
+        SECTION 2: VIDEO CALL INTERFACE
+        ============================================== -->
         <section class="videos-section" id="videos-section" style="display: none;">
-            <button id="home-btn-desktop" class="control-button home-button" title="Back to Home Screen">
-                <img src="assets/icon_home.svg" alt="Home">
-            </button>
 
+            <!-- Main content area for video feeds and room info -->
             <div class="container">
+                
+                <!-- Room name display and copy button -->
                 <div id="room-name-container" class="room-name-container" style="display: none;">
-                    <!-- The wrapper is now the only direct child -->
                     <div class="room-id-wrapper">
-                        <!-- The label is now INSIDE the wrapper -->
                         <p class="room-label">Room Name:</p>
                         <span id="room-name-text"></span>
                         <button id="copy-link-btn" class="copy-button" title="Copy link">
@@ -72,38 +70,57 @@
                     </div>
                 </div>
                 
+                <!-- The main grid where video containers will be placed -->
                 <div id="videos">
+                    <!-- This area will hold the main screen share video -->
+                    <div id="presenter-area" style="display: none;"></div>
+                    
+                    <!-- This sidebar will hold other participants during screen share -->
+                    <div id="participant-sidebar" style="display: none;"></div>
+
+                    <!-- Local user's video container -->
                     <div class="video-container" id="local-video-container">
                         <h4>You</h4>
                         <video id="local-video" autoplay muted playsinline></video>
-
                         <div class="video-placeholder">
                             <img src="assets/icon_camera_off.svg" alt="Camera is off">
                         </div>
-
-                        <div id="call-controls" class="call-controls" style="display: none;">
-                            <button id="home-btn-mobile" class="control-button" title="Back to Home Screen">
-                                <img src="assets/icon_home.svg" alt="Home">
-                            </button>
-                            <div class="mic-test-container">
-                                <button id="mic-test-btn" class="control-button" title="Listen to your microphone">
-                                    <img src="assets/icon_headphones.svg" alt="Listen to microphone">
-                                </button>
-                            </div>
-                            <div class="main-controls">
-                                <button id="mute-btn" class="control-button" title="Mute microphone">
-                                    <img src="assets/icon_micro.svg" alt="Microphone">
-                                </button>
-                                <button id="video-btn" class="control-button" title="Turn off camera">
-                                    <img src="assets/icon_camera.svg" alt="Camera">
-                                </button>
-                            </div>
-                        </div>
+                        <!-- NOTE: The old #call-controls div has been completely removed from here -->
                     </div>
                 </div>
+
             </div>
+
+            <!-- NEW: Global controls container, placed outside the main content container -->
+            <div id="main-controls-container" class="main-controls-container" style="display: none;">
+                <button id="mic-test-btn" class="control-button" title="Listen to your microphone">
+                    <img src="assets/icon_headphones.svg" alt="Listen to microphone">
+                </button>
+                
+                <!-- This button is multi-purpose: Screen Share on Desktop, Switch Camera on Mobile -->
+                <button id="feature-btn" class="control-button" title="Share your screen">
+                    <img src="assets/icon_screen_share.svg" alt="Feature button">
+                </button>
+            
+                <button id="leave-btn" class="control-button leave-button" title="Leave call">
+                    <!-- NOTE: You need to add 'icon_leave.svg' to your assets folder -->
+                    <img src="assets/icon_leave.svg" alt="Leave call">
+                </button>
+            
+                <button id="mute-btn" class="control-button" title="Mute microphone">
+                    <img src="assets/icon_micro.svg" alt="Microphone">
+                </button>
+            
+                <button id="video-btn" class="control-button" title="Turn off camera">
+                    <img src="assets/icon_camera.svg" alt="Camera">
+                </button>
+            </div>
+
         </section>
 
+        <!-- =============================================
+        SECTION 3: FOOTER
+        ============================================== -->
         <footer class="main-footer">
             <div class="footer-content">
                 <!-- Donation button -->
@@ -114,8 +131,25 @@
             </div>
         </footer>
 
+        <!-- =============================================
+        SECTION 4: MODAL for Screen Share Resolution
+        ============================================== -->
+        <div id="resolution-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <h3>Select Screen Share Resolution</h3>
+                <p>Higher resolutions provide better quality but require more bandwidth.</p>
+                <div class="modal-buttons">
+                    <button class="cta-button primary" data-resolution="original">Original</button>
+                    <button class="cta-button primary" data-resolution="1080p">1080p (HD)</button>
+                    <button class="cta-button primary" data-resolution="720p">720p (SD)</button>
+                </div>
+                <button id="modal-close-btn" class="modal-close">&times;</button>
+            </div>
+        </div>
+
     </main>
 
+    <!-- Essential Scripts -->
     <script src="socket.io.min.js"></script>
     <script src="script.js"></script>
 </body>
