@@ -630,79 +630,85 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
    6. RESPONSIVE & MOBILE STYLES
    ================================== */
 @media (max-width: 768px) {
-    /* General styles for small screens */
-    .hero-content h1 {
-        font-size: 2rem;
-        margin-bottom: 15px;
-    }
-
-    .hero-content h2 {
-        font-size: 1rem;
-        margin-bottom: 30px;
-    }
-
-    .input-group {
-        flex-wrap: wrap;
-    }
-
-    #join-btn {
-        width: 100%;
-        margin-top: 10px;
-        order: 3;
-    }
-    
-    .container {
-        padding: 0 10px;
-    }
 
     /* --- Portrait Mode --- */
     @media (orientation: portrait) {
-        .videos-section > .container {
-            padding: 0;
+        .videos-section {
+            padding: 10px 0;
         }
-
         #videos {
             flex-direction: column; /* Stack videos vertically */
             padding: 10px;
             gap: 10px;
         }
-
         .main-controls-container {
             width: 100%;
-            padding: 12px 10px;
+            padding: 12px 10px 5px 10px; /* MODIFICATION: Reduced bottom padding to close gap */
             background-color: rgba(18, 18, 18, 0.9);
             backdrop-filter: blur(8px);
         }
+
+        /* MODIFICATION START: Fix room name font wrap */
+        .room-id-wrapper {
+            padding: 4px 10px;
+        }
+        .room-label,
+        #room-name-text {
+            font-size: 0.9rem; /* Reduced font size to fit on one line */
+        }
+        /* MODIFICATION END */
     }
 
     /* --- Landscape Mode --- */
     @media (orientation: landscape) {
-        /* The whole section becomes horizontal */
-        .videos-section > .container {
-             flex-direction: row;
-             padding: 10px;
-             gap: 10px;
+        .videos-section {
+            flex-direction: row; /* Videos left, controls right */
+            align-items: stretch; /* Make children fill height */
+            padding: 10px;
+            gap: 10px; /* Add gap between video area and controls */
         }
-        
+
+        /* MODIFICATION START: Fix video container layout */
+        .videos-section > .container {
+            flex-grow: 1; /* Allow container to take all available width */
+            min-width: 0; /* Prevent flex overflow */
+            display: flex;
+            flex-direction: column; /* Stack room name, videos, and copyright vertically */
+        }
         #videos {
+            flex-grow: 1; /* Allow video grid to take all available height */
+            min-height: 0;
             padding: 0;
             gap: 10px;
         }
+        /* MODIFICATION END */
 
-        .room-name-container {
-            display: none; /* Hide room name to save space */
-        }
-        
+        /* MODIFICATION START: Position controls on the right */
         .main-controls-container {
             flex-direction: column; /* Stack controls vertically */
             justify-content: center;
-            width: auto;
-            padding: 0;
+            width: auto; /* Let width be determined by content */
+            padding: 0 10px;
             gap: 12px;
+            flex-shrink: 0; /* Prevent controls from shrinking */
         }
+        /* MODIFICATION END */
         
+        /* MODIFICATION START: Handle copyright visibility and position */
+        /* Hide the original footer in this specific view */
         .main-footer {
-            display: none; /* Hide footer to save space */
+            display: none;
         }
+
+        /* Create a new copyright notice using a pseudo-element */
+        .videos-section > .container::after {
+            content: '© 2025 Andrew R. Tools. All Rights Reserved.';
+            display: block;
+            text-align: center;
+            padding-top: 8px; /* Space between videos and copyright */
+            font-size: 0.7rem; /* Make font smaller */
+            color: var(--text-secondary);
+        }
+        /* MODIFICATION END */
     }
 }
