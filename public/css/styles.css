@@ -722,8 +722,6 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
         .main-controls-container {
             width: 100%;
             padding: 12px 10px 5px 10px;
-            background-color: rgba(18, 18, 18, 0.9);
-            backdrop-filter: blur(8px);
         }
 
         .room-id-wrapper {
