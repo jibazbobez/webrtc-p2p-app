@@ -1,5 +1,5 @@
 /* ===================================================================
-//                 Secure Video Call - styles.css
+//                 WebRTC P2P Call - styles.css
 // =================================================================== */
 
 /* ==================================
@@ -10,7 +10,7 @@
     --surface-color: #1E1E1E;
     --primary-accent: #007AFF;
     --text-primary: #FFFFFF;
-    --text-secondary: #B3B3B3;
+    --text-secondary: #bbbbbb;
     --border-color: #333333;
     --font-family: 'Inter', sans-serif;
 }
@@ -93,7 +93,7 @@ main {
 .hero-content h1 {
     font-size: 4rem;
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 0.8;
     margin-bottom: 20px;
 }
 
@@ -722,6 +722,8 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
         .main-controls-container {
             width: 100%;
             padding: 12px 10px 5px 10px;
+            background-color: rgba(18, 18, 18, 0.9);
+            backdrop-filter: blur(8px);
         }
 
         .room-id-wrapper {
