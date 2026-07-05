@@ -100,6 +100,18 @@ const isMobile = () => {
     return uaMobile || isMacTouch;
 };
 
+// Detects iOS / iPadOS Safari specifically. These browsers do NOT support the
+// standard Fullscreen API (Element.requestFullscreen) on arbitrary DOM
+// elements — only the proprietary `webkitEnterFullscreen()` on a <video>
+// element. We use this to pick the correct fullscreen strategy on mobile.
+const isIOS = () => {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    const isIOSUA = /iphone|ipad|ipod/.test(ua);
+    // iPadOS 13+ reports a Mac desktop UA but is still iOS underneath.
+    const isIPadOS = /macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+    return isIOSUA || isIPadOS;
+};
+
 // --- 4.3. WebRTC ICE Configuration ---
 // NOTE: Removed unreliable/abandoned public servers (turn.bistri.com,
 // stun.fwdnet.net, stun.ideasip.com) that were frequently offline and only
@@ -665,10 +677,17 @@ const handleScreenShareClick = () => {
 const startScreenShare = async (resolution) => {
     resolutionModal.style.display = 'none';
 
+    // NOTE: System audio captured by getDisplayMedia must be passed WITHOUT
+    // echoCancellation/noiseSuppression — those DSP filters are designed for
+    // microphone input and would distort/suppress desktop sound (music,
+    // dialogue, media), producing the "extraneous noise" effect on the
+    // peer's side. We request plain `audio: true` so the browser hands us
+    // the raw system-audio track, which is then mixed with the (already
+    // filtered) microphone track in the Web Audio graph below.
     const constraints = {
-        'original': { video: { cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } },
-        '1080p': { video: { width: 1920, height: 1080, cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } },
-        '720p': { video: { width: 1280, height: 720, cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } }
+        'original': { video: { cursor: "always" }, audio: true },
+        '1080p': { video: { width: 1920, height: 1080, cursor: "always" }, audio: true },
+        '720p': { video: { width: 1280, height: 720, cursor: "always" }, audio: true }
     };
 
     try {
@@ -1081,9 +1100,45 @@ function enterExpandedMode(container) {
         videos.appendChild(resModal);
     }
 
-    // Request real device fullscreen on the #videos container so the layout
-    // covers the entire screen (like YouTube), not just the browser window.
-    if (!document.fullscreenElement) {
+    // Request real device fullscreen so the layout covers the ENTIRE device
+    // screen (like YouTube), not just the browser viewport.
+    //
+    // Platform strategy:
+    //  - iOS / iPadOS Safari: does NOT implement Element.requestFullscreen().
+    //    The only way to take over the whole device screen is the proprietary
+    //    `webkitEnterFullscreen()` on a <video> element. We call it on the
+    //    expanded container's video. The CSS expanded-mode layout still
+    //    applies underneath (so the PiP thumbnail + controls overlay remain
+    //    visible once the user returns from the native video fullscreen).
+    //  - Android / Desktop: use the standard Fullscreen API on #videos so
+    //    the whole layout (main video + PiP + controls) goes fullscreen.
+    //  - Fallback: if neither API is available, the CSS classes applied
+    //    above (position:fixed; 100dvh) already cover the browser viewport.
+    if (isIOS()) {
+        const videoEl = container.querySelector('video');
+        if (videoEl && typeof videoEl.webkitEnterFullscreen === 'function') {
+            // Listen for the user exiting via the native "Done" button so we
+            // can tear down the expanded layout in sync. Use { once: true }
+            // so the listener auto-removes after the first transition.
+            const onModeChange = () => {
+                if (videoEl.webkitPresentationMode !== 'fullscreen' && expandedContainer) {
+                    exitExpandedMode();
+                }
+            };
+            videoEl.addEventListener('webkitpresentationmodechanged', onModeChange);
+            // Store the handler so exitExpandedMode() can remove it if the
+            // user exits via our own button instead of the native one.
+            container._iosFullscreenHandler = onModeChange;
+
+            try {
+                videoEl.webkitEnterFullscreen();
+            } catch (err) {
+                console.error(`[ERROR] iOS webkitEnterFullscreen failed: ${err.message}`);
+            }
+        } else {
+            console.warn('[UI] iOS: webkitEnterFullscreen unavailable. Falling back to CSS fullscreen layout.');
+        }
+    } else if (!document.fullscreenElement) {
         videos.requestFullscreen().catch(err => {
             console.error(`[ERROR] Failed to enter fullscreen: ${err.message}`);
         });
@@ -1100,7 +1155,13 @@ function exitExpandedMode() {
     document.body.classList.remove('expanded-mode', 'show-controls');
 
     videos.querySelectorAll('.video-container').forEach(c => {
-        c.classList.remove('expanded', 'pip');
+        c.classList.remove('expanded', 'pip', 'dragging');
+        // Reset inline position styles left over from dragging the PiP
+        // thumbnail in expanded mode. Without this, the containers remain
+        // shifted after exiting fullscreen.
+        c.style.left = '';
+        c.style.top = '';
+        c.style.right = '';
         const btn = c.querySelector('.fullscreen-btn');
         if (btn) {
             btn.querySelector('img').src = 'assets/icon_fullscreen.svg';
@@ -1114,8 +1175,22 @@ function exitExpandedMode() {
         controlsHideTimer = null;
     }
 
-    // Exit real device fullscreen if active
-    if (document.fullscreenElement) {
+    // Exit real device fullscreen if active.
+    // On iOS / iPadOS Safari the standard Fullscreen API is unavailable, so
+    // we exit the native video fullscreen via webkitExitFullscreen() instead.
+    // We also remove the presentation-mode listener that was attached in
+    // enterExpandedMode() to avoid a duplicate exit call.
+    if (isIOS()) {
+        const videoEl = expandedContainer.querySelector('video');
+        if (videoEl && typeof videoEl.webkitExitFullscreen === 'function') {
+            try { videoEl.webkitExitFullscreen(); } catch (e) { /* ignore */ }
+        }
+        if (expandedContainer._iosFullscreenHandler) {
+            const v = expandedContainer.querySelector('video');
+            if (v) v.removeEventListener('webkitpresentationmodechanged', expandedContainer._iosFullscreenHandler);
+            expandedContainer._iosFullscreenHandler = null;
+        }
+    } else if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
     }
 
