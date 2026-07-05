@@ -48,6 +48,12 @@ let speakingTimer;
 let syncInterval;
 let screenStream;
 let currentSharerId = null;
+// Remembers whether the camera was enabled before screen sharing started, so
+// that stopScreenShare() can restore the same on/off state after re-acquiring
+// the camera track. While screen sharing is active the camera track is
+// physically stopped (not just disabled) to save battery and bandwidth —
+// there is no point streaming a webcam feed that nobody sees.
+let cameraWasEnabledBeforeShare = true;
 let currentCamera = 'user'; // 'user' for front, 'environment' for back (for mobile)
 // Audio mixing resources used while screen sharing (mic + system audio).
 // These are torn down in stopScreenShare() to restore the raw mic track.
@@ -308,6 +314,14 @@ const toggleAudio = () => {
 };
 
 const toggleVideo = () => {
+    // While screen sharing is active the camera track is physically stopped
+    // (stopped, not just disabled) to save battery and bandwidth. Toggling
+    // the camera button in this state would have no visible effect and would
+    // desync the enabled flag, so we ignore the press entirely.
+    if (screenStream) {
+        console.log('[CONTROL] Camera toggle ignored — screen share is active.');
+        return;
+    }
     const videoTrack = localStream.getVideoTracks()[0];
     if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
@@ -380,7 +394,27 @@ function setupAudioAnalysis(stream) {
 // --- 11. Core WebRTC Logic ---
 function createPeerConnection(targetSocketId) {
     const pc = new RTCPeerConnection(iceConfig);
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    // When a screen share is active, the outgoing video track must be the
+    // screen track (not the camera, which is physically stopped), and the
+    // outgoing audio track must be the mixed track (mic + system audio)
+    // when available. This ensures a peer that connects AFTER the host
+    // started sharing sees the screen — not a frozen/black camera feed.
+    if (screenStream) {
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
+        if (screenVideoTrack) pc.addTrack(screenVideoTrack, screenStream);
+        // Prefer the mixed audio track; fall back to the raw mic track from
+        // localStream so the peer still hears the presenter's voice.
+        if (mixedAudioTrack) {
+            pc.addTrack(mixedAudioTrack, screenStream);
+        } else {
+            const micTrack = localStream.getAudioTracks()[0];
+            if (micTrack) pc.addTrack(micTrack, localStream);
+        }
+    } else {
+        // No screen share — send the regular camera + mic tracks.
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    }
 
     // Apply a per-platform bitrate cap on the outgoing video track to reduce
     // mobile heat / battery usage and keep desktop quality high.
@@ -779,6 +813,19 @@ const startScreenShare = async (resolution) => {
         localVideo.srcObject = screenStream;
         document.getElementById('local-video-container').classList.add('screen-sharing');
 
+        // Physically stop the camera track while screen sharing. There is no
+        // point streaming a webcam feed that nobody sees — it wastes battery
+        // and bandwidth. We remember the previous enabled state so that
+        // stopScreenShare() can restore the camera to the same on/off state
+        // after re-acquiring the track.
+        const cameraTrack = localStream.getVideoTracks()[0];
+        if (cameraTrack) {
+            cameraWasEnabledBeforeShare = cameraTrack.enabled;
+            cameraTrack.stop();
+            localStream.removeTrack(cameraTrack);
+            console.log('[SCREEN] Camera track physically stopped during screen share.');
+        }
+
         socket.emit('user_started_sharing', { roomName });
         updateUIAfterScreenShare(socket.id); // Pass our own ID as the sharer
         featureBtn.classList.add('active');
@@ -809,7 +856,37 @@ const stopScreenShare = async () => {
     screenStream.getTracks().forEach(track => track.stop());
     screenStream = null;
 
-    // Restore the camera track for all peers.
+    // The camera track was physically stopped in startScreenShare() to save
+    // battery/bandwidth, so it no longer exists in localStream. Re-acquire a
+    // fresh camera track via getUserMedia and re-insert it into localStream.
+    // The previous enabled state (cameraWasEnabledBeforeShare) is restored so
+    // the camera returns to the same on/off state the user had before sharing.
+    let newCameraTrack = null;
+    try {
+        const camConstraints = isMobile() ? mobileMediaConstraints : desktopMediaConstraints;
+        const camStream = await navigator.mediaDevices.getUserMedia(camConstraints);
+        newCameraTrack = camStream.getVideoTracks()[0];
+        if (newCameraTrack) {
+            localStream.addTrack(newCameraTrack);
+            // Restore the previous enabled state. If the camera was off before
+            // sharing, keep it off after stopping the share.
+            newCameraTrack.enabled = cameraWasEnabledBeforeShare;
+            console.log('[SCREEN] Camera track re-acquired after screen share.');
+        }
+    } catch (camErr) {
+        console.warn('[SCREEN] Could not re-acquire camera track after stopping screen share:', camErr.name);
+    }
+
+    // Update the camera button UI to reflect the restored enabled state.
+    if (newCameraTrack) {
+        const videoIcon = videoBtn.querySelector('img');
+        videoIcon.src = newCameraTrack.enabled ? ICON_PATHS.videoOn : ICON_PATHS.videoOff;
+        videoBtn.classList.toggle('active', !newCameraTrack.enabled);
+        document.querySelector('#local-video-container .video-placeholder').classList.toggle('hidden', newCameraTrack.enabled);
+        videoBtn.title = newCameraTrack.enabled ? "Turn off camera" : "Turn on camera";
+    }
+
+    // Restore the camera + mic tracks for all peers.
     const cameraTrack = localStream.getVideoTracks()[0];
     // Restore the original microphone track (the mixed/system audio track is
     // discarded together with the screen stream).
@@ -1221,6 +1298,22 @@ function exitExpandedMode() {
     } else {
         localVideo.srcObject = localStream;
     }
+
+    // After exiting native video fullscreen (iOS Safari) the <video> element
+    // is often left in a paused state — the user would see a frozen frame or
+    // a black screen and have to press Play manually. Explicitly resume
+    // playback on every video element (local + remote) so the streams keep
+    // playing seamlessly after the swipe-down / "Done" gesture.
+    const playPromise = localVideo.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => { /* autoplay can be rejected if already playing */ });
+    }
+    videos.querySelectorAll('.video-container video').forEach(v => {
+        const p = v.play();
+        if (p && typeof p.catch === 'function') {
+            p.catch(() => { /* ignore autoplay rejections */ });
+        }
+    });
 
     // Restore the controls container and modal to their original parents
     if (mainControlsContainer && videos._controlsOriginalParent) {
