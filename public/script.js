@@ -439,6 +439,9 @@ function handleRemoteStream(stream, targetSocketId) {
         // 8. Add the fully constructed container to the main videos grid
         videosContainer.appendChild(videoContainer);
 
+        // 9. Attach tap-to-reveal interaction for the fullscreen button
+        attachContainerInteraction(videoContainer);
+
         // --- Logic for the freeze-frame effect ---
         const canvasContext = freezeFrameCanvas.getContext('2d');
         
@@ -588,6 +591,10 @@ socket.on('user-disconnected', (userId) => {
     }
     const videoElement = document.getElementById(`video-${userId}`);
     if (videoElement) {
+        // If the disconnected user was the expanded/PiP container, exit mode
+        if (expandedContainer === videoElement) {
+            exitExpandedMode();
+        }
         videoElement.remove();
     }
     
@@ -1018,33 +1025,102 @@ function updateFeatureButtonState() {
 }
 
 // --- 14.8 UI Interaction ---
-function toggleFullscreen(event) {
-    const button = event.currentTarget;
-    const container = button.closest('.video-container');
+// CSS-based "expanded" (Picture-in-Picture) mode.
+// Instead of using the browser Fullscreen API (which hides everything else
+// and would require duplicating streams), we simply restyle the existing
+// <video> containers: the chosen one fills the area, the other one shrinks
+// into the top-right corner. The same two streams are reused — no cloning,
+// no state races.
+let expandedContainer = null;
+let controlsHideTimer = null;
 
-    // --- Platform-aware fullscreen logic ---
-    if (!document.fullscreenElement) {
-        // --- Enter fullscreen mode ---
-        let elementToFullscreen = container;
-        
-        if (isMobile()) {
-            // On mobile, target the video element directly
-            const videoEl = container.querySelector('video');
-            if (videoEl) {
-                elementToFullscreen = videoEl;
-            }
-            console.log('[UI] Mobile device detected. Targeting <video> element for fullscreen.');
+function showControlsTemporarily() {
+    document.body.classList.add('show-controls');
+    if (controlsHideTimer) clearTimeout(controlsHideTimer);
+    controlsHideTimer = setTimeout(() => {
+        document.body.classList.remove('show-controls');
+    }, 3000);
+}
+
+function enterExpandedMode(container) {
+    if (!container) return;
+    const videos = document.getElementById('videos');
+    expandedContainer = container;
+
+    videos.classList.add('expanded-mode');
+    document.body.classList.add('expanded-mode');
+
+    videos.querySelectorAll('.video-container').forEach(c => {
+        if (c === container) {
+            c.classList.add('expanded');
+        } else {
+            c.classList.add('pip');
         }
+    });
 
-        console.log('[UI] Requesting fullscreen for element:', elementToFullscreen);
-        elementToFullscreen.requestFullscreen().catch(err => {
+    // Swap the active container's button to the "exit" icon
+    const btn = container.querySelector('.fullscreen-btn');
+    if (btn) {
+        btn.querySelector('img').src = 'assets/icon_fullscreen_exit.svg';
+        btn.title = 'Exit Fullscreen';
+    }
+
+    showControlsTemporarily();
+
+    // Request real device fullscreen on the #videos container so the layout
+    // covers the entire screen (like YouTube), not just the browser window.
+    if (!document.fullscreenElement) {
+        videos.requestFullscreen().catch(err => {
             console.error(`[ERROR] Failed to enter fullscreen: ${err.message}`);
         });
-        
+    }
+
+    console.log('[UI] Entered expanded (PiP) mode for:', container.id);
+}
+
+function exitExpandedMode() {
+    if (!expandedContainer) return;
+    const videos = document.getElementById('videos');
+
+    videos.classList.remove('expanded-mode');
+    document.body.classList.remove('expanded-mode', 'show-controls');
+
+    videos.querySelectorAll('.video-container').forEach(c => {
+        c.classList.remove('expanded', 'pip', 'dragging', 'reveal-controls');
+        // Clear any inline position set while dragging the PiP container
+        c.style.left = '';
+        c.style.top = '';
+        c.style.right = '';
+        const btn = c.querySelector('.fullscreen-btn');
+        if (btn) {
+            btn.querySelector('img').src = 'assets/icon_fullscreen.svg';
+            btn.title = 'Go Fullscreen';
+        }
+    });
+
+    expandedContainer = null;
+    if (controlsHideTimer) {
+        clearTimeout(controlsHideTimer);
+        controlsHideTimer = null;
+    }
+
+    // Exit real device fullscreen if active
+    if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    }
+
+    console.log('[UI] Exited expanded (PiP) mode.');
+}
+
+function toggleFullscreen(event) {
+    if (event) event.stopPropagation();
+    const button = event ? event.currentTarget : null;
+    const container = button ? button.closest('.video-container') : null;
+
+    if (expandedContainer) {
+        exitExpandedMode();
     } else {
-        // --- Exit fullscreen mode (this part is universal) ---
-        console.log('[UI] Exiting fullscreen mode.');
-        document.exitFullscreen();
+        enterExpandedMode(container);
     }
 }
 
@@ -1076,6 +1152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (localFullscreenBtn) {
         localFullscreenBtn.addEventListener('click', toggleFullscreen);
     }
+
+    // Attach tap-to-reveal interaction to the local container too
+    attachContainerInteraction(document.getElementById('local-video-container'));
 });
 
 // --- 17. Top-Level Event Listeners ---
@@ -1109,13 +1188,132 @@ if (resolutionModal) {
     });
 }
 
-document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-        console.log('[UI] Fullscreen was exited (e.g., by ESC key). Resetting all buttons.');
-        // If we exited fullscreen, reset all fullscreen buttons to their initial state
-        document.querySelectorAll('.fullscreen-btn').forEach(button => {
-            button.querySelector('img').src = 'assets/icon_fullscreen.svg';
-            button.title = 'Go Fullscreen';
-        });
+// ESC key exits expanded mode
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && expandedContainer) {
+        exitExpandedMode();
     }
+});
+
+// If the user exits device fullscreen via browser controls (ESC, swipe),
+// also tear down the expanded/PiP layout.
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && expandedContainer) {
+        exitExpandedMode();
+    }
+});
+
+// --- Auto-show/hide fullscreen button on container tap ---
+// On mobile there is no hover, so tapping the container briefly reveals the
+// fullscreen button (and controls). On desktop the same handler works as a
+// click anywhere on the video.
+function attachContainerInteraction(container) {
+    if (!container || container.dataset.fsInteraction === '1') return;
+    container.dataset.fsInteraction = '1';
+
+    // --- Draggable PiP (pointer events: works for mouse + touch) ---
+    let dragState = null;
+
+    container.addEventListener('pointerdown', (e) => {
+        if (!expandedContainer || !container.classList.contains('pip')) return;
+        if (e.target.closest('.fullscreen-btn')) return;
+
+        const rect = container.getBoundingClientRect();
+        dragState = {
+            startX: e.clientX,
+            startY: e.clientY,
+            origLeft: rect.left,
+            origTop: rect.top,
+            offsetX: e.clientX - rect.left,
+            offsetY: e.clientY - rect.top,
+            moved: false,
+            pointerId: e.pointerId,
+        };
+        container.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    });
+
+    container.addEventListener('pointermove', (e) => {
+        if (!dragState || e.pointerId !== dragState.pointerId) return;
+        const dx = e.clientX - dragState.startX;
+        const dy = e.clientY - dragState.startY;
+        if (!dragState.moved && Math.hypot(dx, dy) > 6) {
+            dragState.moved = true;
+            container.classList.add('dragging');
+        }
+        if (!dragState.moved) return;
+
+        // Position relative to the #videos (fullscreen) container
+        const videos = document.getElementById('videos');
+        const vRect = videos.getBoundingClientRect();
+        let newLeft = e.clientX - vRect.left - dragState.offsetX;
+        let newTop = e.clientY - vRect.top - dragState.offsetY;
+
+        // Clamp inside the visible area
+        const maxLeft = vRect.width - container.offsetWidth;
+        const maxTop = vRect.height - container.offsetHeight;
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+
+        container.style.left = newLeft + 'px';
+        container.style.top = newTop + 'px';
+        container.style.right = 'auto';
+    });
+
+    const endDrag = (e) => {
+        if (!dragState || e.pointerId !== dragState.pointerId) return;
+        const wasMoved = dragState.moved;
+        container.classList.remove('dragging');
+        if (container.hasPointerCapture(e.pointerId)) {
+            container.releasePointerCapture(e.pointerId);
+        }
+        dragState = null;
+        // If it was a drag, suppress the click (which would swap)
+        if (wasMoved) {
+            container._suppressClick = true;
+        }
+    };
+
+    container.addEventListener('pointerup', endDrag);
+    container.addEventListener('pointercancel', endDrag);
+
+    container.addEventListener('click', (e) => {
+        // Ignore clicks on the button itself — it has its own handler
+        if (e.target.closest('.fullscreen-btn')) return;
+
+        // Suppress click right after a drag
+        if (container._suppressClick) {
+            container._suppressClick = false;
+            return;
+        }
+
+        // In expanded mode: tapping the PiP (small) container swaps it
+        // with the main one — same streams, just restyled.
+        if (expandedContainer && container.classList.contains('pip')) {
+            exitExpandedMode();
+            enterExpandedMode(container);
+            return;
+        }
+
+        // In expanded mode: tapping the main container reveals controls
+        if (expandedContainer && container.classList.contains('expanded')) {
+            showControlsTemporarily();
+            return;
+        }
+
+        // Briefly reveal the fullscreen button on this container
+        container.classList.add('reveal-controls');
+        clearTimeout(container._revealTimer);
+        container._revealTimer = setTimeout(() => {
+            container.classList.remove('reveal-controls');
+        }, 3000);
+    });
+}
+
+// Attach to existing containers (local + any future remote ones)
+document.querySelectorAll('.video-container').forEach(attachContainerInteraction);
+
+// Reveal controls on mouse move while in expanded mode (desktop)
+document.addEventListener('mousemove', () => {
+    if (expandedContainer) showControlsTemporarily();
 });
