@@ -591,17 +591,10 @@ socket.on('user-disconnected', (userId) => {
     }
     const videoElement = document.getElementById(`video-${userId}`);
     if (videoElement) {
-        // Smart reset: if we're in expanded mode and the disconnected user
-        // was either the expanded or the PiP container, tear down the whole
-        // expanded layout and return both containers to their default
-        // positions. This prevents broken/orphaned PiP states.
+        // Any peer disconnect during expanded mode breaks the two-container
+        // arrangement, so always reset to the default layout.
         if (expandedContainer) {
-            const videos = document.getElementById('videos');
-            const wasInvolved = (expandedContainer === videoElement) ||
-                videos.querySelector('.video-container.pip') === videoElement;
-            if (wasInvolved) {
-                exitExpandedMode();
-            }
+            exitExpandedMode();
         }
         videoElement.remove();
     }
@@ -672,16 +665,10 @@ const handleScreenShareClick = () => {
 const startScreenShare = async (resolution) => {
     resolutionModal.style.display = 'none';
 
-    // NOTE: audio is requested as a plain `true` (no echoCancellation /
-    // noiseSuppression / sampleRate constraints). System-audio tracks returned
-    // by getDisplayMedia do NOT support those processing options, and supplying
-    // them can cause Chrome to silently drop the audio track even when the
-    // user checks "Share audio". A plain `true` maximises the chance that
-    // desktop/tab audio is captured.
     const constraints = {
-        'original': { video: { cursor: "always" }, audio: true },
-        '1080p': { video: { width: 1920, height: 1080, cursor: "always" }, audio: true },
-        '720p': { video: { width: 1280, height: 720, cursor: "always" }, audio: true }
+        'original': { video: { cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } },
+        '1080p': { video: { width: 1920, height: 1080, cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } },
+        '720p': { video: { width: 1280, height: 720, cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } }
     };
 
     try {
@@ -690,19 +677,22 @@ const startScreenShare = async (resolution) => {
         const screenTrack = screenStream.getVideoTracks()[0];
 
         // --- System audio + microphone mixing ---
-        // getDisplayMedia() returns a system-audio track when the user checks
-        // "Share audio" (Chrome/Edge desktop) or shares a tab (Chrome). We
-        // ALWAYS mix it with the live microphone track so the peer hears both
-        // the presenter's voice and all desktop sound. If no system audio is
-        // present, we still build a mix from the microphone alone so that the
-        // audio path is consistent and the mic keeps flowing to peers.
+        // getDisplayMedia() returns a system-audio track ONLY when the user
+        // checks "Share audio" (Chrome/Edge) or shares a tab (Chrome). When
+        // present, we mix it with the live microphone track so the peer hears
+        // both the presenter's voice and the desktop sound. When the screen
+        // share has no audio track (e.g. window/desktop without "share audio"),
+        // we keep sending the raw microphone track and do not set up a mix.
         const systemAudioTrack = screenStream.getAudioTracks()[0];
         const micTrack = localStream.getAudioTracks()[0];
 
-        if (micTrack || systemAudioTrack) {
+        if (systemAudioTrack && micTrack) {
             try {
                 screenAudioContext = new (window.AudioContext || window.webkitAudioContext)();
                 screenAudioDestination = screenAudioContext.createMediaStreamDestination();
+
+                const micSource = screenAudioContext.createMediaStreamSource(new MediaStream([micTrack]));
+                const systemSource = screenAudioContext.createMediaStreamSource(new MediaStream([systemAudioTrack]));
 
                 // Gain nodes allow independent level control; both at 1.0 by default.
                 const micGain = screenAudioContext.createGain();
@@ -710,29 +700,21 @@ const startScreenShare = async (resolution) => {
                 micGain.gain.value = 1.0;
                 systemGain.gain.value = 1.0;
 
-                if (micTrack) {
-                    const micSource = screenAudioContext.createMediaStreamSource(new MediaStream([micTrack]));
-                    micSource.connect(micGain).connect(screenAudioDestination);
-                    console.log('[SCREEN] Microphone added to screen-share audio mix.');
-                }
-                if (systemAudioTrack) {
-                    const systemSource = screenAudioContext.createMediaStreamSource(new MediaStream([systemAudioTrack]));
-                    systemSource.connect(systemGain).connect(screenAudioDestination);
-                    console.log('[SCREEN] System/desktop audio added to screen-share audio mix.');
-                } else {
-                    console.warn('[SCREEN] No system audio track. To share desktop sound, tick "Share audio" in the picker. Microphone will still be sent.');
-                }
+                micSource.connect(micGain).connect(screenAudioDestination);
+                systemSource.connect(systemGain).connect(screenAudioDestination);
 
                 mixedAudioTrack = screenAudioDestination.stream.getAudioTracks()[0];
-                console.log('[SCREEN] Mixed audio track created.');
+                console.log('[SCREEN] Mixed audio track created (mic + system audio).');
             } catch (mixErr) {
-                console.warn('[SCREEN] Could not create audio mix. Falling back to mic/system only.', mixErr);
+                console.warn('[SCREEN] Could not mix system audio with microphone. Falling back to mic only.', mixErr);
                 cleanupScreenAudioMix();
-                // Fallback: prefer system audio if present, otherwise mic
-                mixedAudioTrack = systemAudioTrack || micTrack || null;
             }
+        } else if (systemAudioTrack && !micTrack) {
+            // No microphone available — send the raw system audio track.
+            mixedAudioTrack = systemAudioTrack;
+            console.log('[SCREEN] No microphone track; sending raw system audio.');
         } else {
-            console.log('[SCREEN] No audio tracks available at all.');
+            console.log('[SCREEN] No system audio track in screen share. Microphone track unchanged.');
         }
 
         // Replace the video track sent to all peers with the screen track.
@@ -1086,50 +1068,28 @@ function enterExpandedMode(container) {
 
     showControlsTemporarily();
 
-    // Request real device fullscreen so the layout covers the entire screen
-    // (like YouTube), not just the browser window.
-    // On iOS Safari, only <video> elements can enter real fullscreen, so we
-    // target the video inside the expanded container there. On Android/Chrome
-    // we can fullscreen the whole #videos container (preserving the PiP).
-    requestDeviceFullscreen(container);
-
-    console.log('[UI] Entered expanded (PiP) mode for:', container.id);
-}
-
-// Cross-platform device fullscreen request.
-// - iOS Safari: only <video> supports real fullscreen (webkitEnterFullscreen).
-// - Android/Chrome/Firefox: standard Element.requestFullscreen() on any element.
-function requestDeviceFullscreen(container) {
-    if (document.fullscreenElement) return;
-
-    const videoEl = container.querySelector('video');
-
-    // iOS Safari path
-    if (videoEl && typeof videoEl.webkitEnterFullscreen === 'function' &&
-        !document.fullscreenEnabled) {
-        try {
-            videoEl.webkitEnterFullscreen();
-            console.log('[UI] iOS video fullscreen requested.');
-            return;
-        } catch (err) {
-            console.warn('[UI] iOS fullscreen failed, falling back:', err);
-        }
+    // Move the controls container and resolution modal INSIDE #videos so they
+    // are part of the fullscreen element and remain visible in true device
+    // fullscreen. They are restored to their original place on exit.
+    if (mainControlsContainer && mainControlsContainer.parentElement !== videos) {
+        videos._controlsOriginalParent = mainControlsContainer.parentElement;
+        videos.appendChild(mainControlsContainer);
+    }
+    const resModal = document.getElementById('resolution-modal');
+    if (resModal && resModal.parentElement !== videos) {
+        videos._modalOriginalParent = resModal.parentElement;
+        videos.appendChild(resModal);
     }
 
-    // Standard path — fullscreen the .videos-section element so that BOTH
-    // the #videos area AND the #main-controls-container (which is a sibling
-    // of #videos inside .videos-section) are visible in fullscreen. If we
-    // only fullscreened #videos, the controls would be hidden by the browser
-    // because they live outside the fullscreen element.
-    const videosSection = document.querySelector('.videos-section');
-    const el = (videoEl && isMobile() && !document.fullscreenEnabled)
-        ? videoEl : videosSection;
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-    if (req) {
-        req.call(el).catch(err => {
+    // Request real device fullscreen on the #videos container so the layout
+    // covers the entire screen (like YouTube), not just the browser window.
+    if (!document.fullscreenElement) {
+        videos.requestFullscreen().catch(err => {
             console.error(`[ERROR] Failed to enter fullscreen: ${err.message}`);
         });
     }
+
+    console.log('[UI] Entered expanded (PiP) mode for:', container.id);
 }
 
 function exitExpandedMode() {
@@ -1140,11 +1100,7 @@ function exitExpandedMode() {
     document.body.classList.remove('expanded-mode', 'show-controls');
 
     videos.querySelectorAll('.video-container').forEach(c => {
-        c.classList.remove('expanded', 'pip', 'dragging', 'reveal-controls');
-        // Clear any inline position set while dragging the PiP container
-        c.style.left = '';
-        c.style.top = '';
-        c.style.right = '';
+        c.classList.remove('expanded', 'pip');
         const btn = c.querySelector('.fullscreen-btn');
         if (btn) {
             btn.querySelector('img').src = 'assets/icon_fullscreen.svg';
@@ -1158,14 +1114,20 @@ function exitExpandedMode() {
         controlsHideTimer = null;
     }
 
-    // Exit real device fullscreen if active (standard + iOS webkit)
-    if (document.fullscreenElement && document.exitFullscreen) {
+    // Exit real device fullscreen if active
+    if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
     }
-    const fsVideo = videos.querySelector('video');
-    if (fsVideo && typeof fsVideo.webkitExitFullscreen === 'function' &&
-        document.webkitFullscreenElement) {
-        fsVideo.webkitExitFullscreen();
+
+    // Restore the controls container and modal to their original parents
+    if (mainControlsContainer && videos._controlsOriginalParent) {
+        videos._controlsOriginalParent.appendChild(mainControlsContainer);
+        videos._controlsOriginalParent = null;
+    }
+    const resModal = document.getElementById('resolution-modal');
+    if (resModal && videos._modalOriginalParent) {
+        videos._modalOriginalParent.appendChild(resModal);
+        videos._modalOriginalParent = null;
     }
 
     console.log('[UI] Exited expanded (PiP) mode.');
@@ -1255,44 +1217,12 @@ document.addEventListener('keydown', (e) => {
 });
 
 // If the user exits device fullscreen via browser controls (ESC, swipe),
-// also tear down the expanded/PiP layout. Listen to both standard and
-// webkit-prefixed events (iOS Safari).
-function handleFullscreenExit() {
-    const stillFs = document.fullscreenElement || document.webkitFullscreenElement;
-    if (!stillFs && expandedContainer) {
+// also tear down the expanded/PiP layout.
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && expandedContainer) {
         exitExpandedMode();
     }
-}
-document.addEventListener('fullscreenchange', handleFullscreenExit);
-document.addEventListener('webkitfullscreenchange', handleFullscreenExit);
-
-// --- Orientation change: keep the PiP container on-screen ---
-// When the device rotates, a manually-positioned PiP could end up off-screen.
-// Re-clamp its position into the new viewport bounds.
-let orientationTimer = null;
-function handleOrientationChange() {
-    if (!expandedContainer) return;
-    const pip = document.querySelector('#videos.expanded-mode .video-container.pip');
-    if (!pip) return;
-    // Defer until the resize/orientation transition settles
-    clearTimeout(orientationTimer);
-    orientationTimer = setTimeout(() => {
-        const videos = document.getElementById('videos');
-        const vRect = videos.getBoundingClientRect();
-        let left = parseFloat(pip.style.left);
-        let top = parseFloat(pip.style.top);
-        // If no inline position was set, leave default (top-left) alone
-        if (isNaN(left) || isNaN(top)) return;
-        const maxLeft = vRect.width - pip.offsetWidth;
-        const maxTop = vRect.height - pip.offsetHeight;
-        left = Math.max(0, Math.min(left, maxLeft));
-        top = Math.max(0, Math.min(top, maxTop));
-        pip.style.left = left + 'px';
-        pip.style.top = top + 'px';
-    }, 150);
-}
-window.addEventListener('orientationchange', handleOrientationChange);
-window.addEventListener('resize', handleOrientationChange);
+});
 
 // --- Auto-show/hide fullscreen button on container tap ---
 // On mobile there is no hover, so tapping the container briefly reveals the

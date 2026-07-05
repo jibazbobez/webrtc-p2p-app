@@ -393,7 +393,7 @@ video {
 
 .video-container.screen-sharing h4::after {
     content: ' • Sharing';
-    color: #ff4085;
+    color: #4dffb4;
 }
 
 /* --- 3.5 Supporting Video Styles --- */
@@ -596,7 +596,7 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10002;
 }
 
 .modal-content {
@@ -700,10 +700,8 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
 
 /* --- Expanded layout: chosen container fills the ENTIRE device screen,
      others shrink to the top-left corner (Picture-in-Picture).
-     #videos uses position: fixed so it covers the whole screen regardless
-     of which ancestor is the browser fullscreen element.
-     Safe-area insets account for notches/home indicators on modern phones
-     and for the status bar in PWA/standalone mode. --- */
+     When #videos is in real browser fullscreen, it becomes the fullscreen
+     element, so the layout below fills the whole screen. --- */
 #videos.expanded-mode {
     position: fixed;
     inset: 0;
@@ -713,22 +711,18 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
     z-index: 9998;
     background-color: #000;
     display: block;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* When .videos-section is the browser fullscreen element, remove its
-   backdrop overlay and padding so the fixed #videos + controls sit flat
-   on a black background. */
-.videos-section:fullscreen,
-.videos-section:-webkit-full-screen {
-    background-color: #000;
-    padding: 0;
-    overflow: hidden;
+/* Neutralize ancestor containing blocks (backdrop-filter / transform create
+   them) so the fixed #videos truly covers the whole device screen. */
+body.expanded-mode .videos-section::before {
+    content: none;
 }
-.videos-section:fullscreen::before,
-.videos-section:-webkit-full-screen::before {
-    display: none;
+body.expanded-mode .videos-section,
+body.expanded-mode .videos-section > .container {
+    backdrop-filter: none;
+    transform: none;
+    contain: none;
 }
 
 #videos.expanded-mode .video-container {
@@ -795,17 +789,22 @@ body.expanded-mode #room-name-container {
     display: none !important;
 }
 
+/* Default (desktop & mobile portrait): controls centered at the bottom */
 body.expanded-mode #main-controls-container {
     position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 50;
+    z-index: 10001;
     background-color: transparent;
     padding: 0;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.4s ease;
+    flex-direction: row;
+    gap: 15px;
+    /* Ensure visible above the fixed #videos layer */
+    display: flex !important;
 }
 
 body.expanded-mode.show-controls #main-controls-container {
@@ -868,31 +867,10 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
         }
 
         .main-controls-container {
-            /* Reset the landscape fixed positioning back to normal flow */
-            position: static;
-            transform: none;
-            top: auto;
-            right: auto;
-            bottom: auto;
-            left: auto;
             width: 100%;
             padding: 12px 10px 5px 10px;
             background-color: rgba(18, 18, 18, 0.9);
             backdrop-filter: blur(8px);
-        }
-
-        /* Reset button sizes to defaults in portrait (landscape uses vh clamps) */
-        .control-button {
-            width: 52px;
-            height: 52px;
-        }
-        .control-button img {
-            width: 24px;
-            height: 24px;
-        }
-        .leave-button img {
-            width: 40px;
-            height: 40px;
         }
 
         .room-id-wrapper {
@@ -909,8 +887,7 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
         .videos-section {
             flex-direction: row;
             align-items: stretch;
-            /* Reserve space on the right for the fixed controls column */
-            padding: 10px 70px 10px 10px;
+            padding: 10px;
             gap: 10px;
         }
 
@@ -927,55 +904,32 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
             gap: 10px;
         }
 
-        /* In mobile landscape the controls are a vertical column pinned to
-           the RIGHT edge of the screen, vertically centered. This is the SAME
-           position in normal and in expanded (fullscreen) mode, so there is
-           no jump when entering/exiting fullscreen. Buttons scale
-           proportionally based on the shorter viewport dimension (height in
-           landscape) via `min(vh, vw)`-style clamping, never squished. */
         .main-controls-container {
-            position: fixed;
-            top: 50%;
-            right: 12px;
-            bottom: auto;
-            left: auto;
-            transform: translateY(-50%);
             flex-direction: column;
             justify-content: center;
             width: auto;
-            padding: 0;
-            gap: 10px;
+            padding: 0 10px;
+            gap: 12px;
             flex-shrink: 0;
-            z-index: 20;
-            background-color: transparent;
+            /* Allow the controls column to shrink its width on very narrow
+               landscape screens, but never let the buttons themselves be
+               squished — they scale down proportionally via the rules below. */
+            min-width: 0;
+            overflow: visible;
         }
 
-        /* Proportional scaling: base button size on viewport height (the
-           limiting dimension in landscape), clamped to keep tappability. */
-        .control-button {
-            width: clamp(34px, 11vh, 52px);
-            height: clamp(34px, 11vh, 52px);
-        }
-
-        .control-button img {
-            width: clamp(16px, 5vh, 24px);
-            height: clamp(16px, 5vh, 24px);
-        }
-
-        .leave-button img {
-            width: clamp(24px, 8vh, 40px);
-            height: clamp(24px, 8vh, 40px);
-        }
-
-        /* Expanded mode: same right-side column, just allow show/hide. */
+        /* In expanded (fullscreen) mode on mobile landscape, keep the
+           controls as a vertical column anchored to the right edge. */
         body.expanded-mode #main-controls-container {
+            position: fixed;
             top: 50%;
+            right: 16px;
             bottom: auto;
             left: auto;
-            right: 12px;
             transform: translateY(-50%);
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            padding: 0;
         }
 
         .main-footer {
@@ -989,6 +943,34 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
             padding-top: 8px;
             font-size: 0.7rem;
             color: var(--text-secondary);
+        }
+
+        /* On narrow landscape screens (short height) the control buttons must
+           not be squished vertically. Instead they scale down proportionally
+           while keeping their 1:1 aspect ratio and the icon-to-button ratio. */
+        @media (max-height: 420px) {
+            .main-controls-container {
+                gap: 8px;
+                padding: 0 6px;
+            }
+
+            .control-button {
+                /* Use viewport height so the whole bar scales together.
+                   Clamp keeps a sane min/max so buttons stay tappable. */
+                width: clamp(34px, 11vh, 52px);
+                height: clamp(34px, 11vh, 52px);
+            }
+
+            .control-button img {
+                width: clamp(16px, 5vh, 24px);
+                height: clamp(16px, 5vh, 24px);
+            }
+
+            /* The leave button icon is larger; scale it proportionally too. */
+            .leave-button img {
+                width: clamp(24px, 8vh, 40px);
+                height: clamp(24px, 8vh, 40px);
+            }
         }
     }
 }
