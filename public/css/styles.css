@@ -393,7 +393,7 @@ video {
 
 .video-container.screen-sharing h4::after {
     content: ' • Sharing';
-    color: #4dffb4;
+    color: #ff4085;
 }
 
 /* --- 3.5 Supporting Video Styles --- */
@@ -881,14 +881,19 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
             font-size: 0.9rem;
         }
 
-        /* In portrait presenter mode, keep the column layout: the screen
-           share sits on top (2/3 of the height) and the participant camera
-           below (1/3). This is more natural on a tall phone screen than a
-           side-by-side row. */
+        /* In portrait mode, video containers are ALWAYS equal-sized (1:1),
+           even during a screen share. The presenter split (2/3 + 1/3) is a
+           landscape-only layout; on a tall phone screen two equal stacked
+           containers are more natural and predictable. We neutralize the
+           presenter-mode flex ratios so both areas grow equally. */
         #videos.presenter-mode {
             flex-direction: column;
         }
-        #participant-sidebar .video-container {
+        #videos.presenter-mode #presenter-area,
+        #videos.presenter-mode #participant-sidebar {
+            flex: 1;
+        }
+        #videos.presenter-mode #participant-sidebar .video-container {
             aspect-ratio: auto;
         }
     }
