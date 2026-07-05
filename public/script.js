@@ -1116,11 +1116,14 @@ function requestDeviceFullscreen(container) {
         }
     }
 
-    // Standard path — fullscreen the #videos container so the PiP layout
-    // is preserved on the same screen.
-    const videos = document.getElementById('videos');
+    // Standard path — fullscreen the .videos-section element so that BOTH
+    // the #videos area AND the #main-controls-container (which is a sibling
+    // of #videos inside .videos-section) are visible in fullscreen. If we
+    // only fullscreened #videos, the controls would be hidden by the browser
+    // because they live outside the fullscreen element.
+    const videosSection = document.querySelector('.videos-section');
     const el = (videoEl && isMobile() && !document.fullscreenEnabled)
-        ? videoEl : videos;
+        ? videoEl : videosSection;
     const req = el.requestFullscreen || el.webkitRequestFullscreen;
     if (req) {
         req.call(el).catch(err => {
