@@ -49,6 +49,11 @@ let syncInterval;
 let screenStream;
 let currentSharerId = null;
 let currentCamera = 'user'; // 'user' for front, 'environment' for back (for mobile)
+// Audio mixing resources used while screen sharing (mic + system audio).
+// These are torn down in stopScreenShare() to restore the raw mic track.
+let screenAudioContext = null;
+let screenAudioDestination = null;
+let mixedAudioTrack = null;
 
 // --- 4.1. Media Constraints for Optimization ---
 
@@ -651,7 +656,7 @@ const handleScreenShareClick = () => {
 
 const startScreenShare = async (resolution) => {
     resolutionModal.style.display = 'none';
-    
+
     const constraints = {
         'original': { video: { cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } },
         '1080p': { video: { width: 1920, height: 1080, cursor: "always" }, audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } },
@@ -663,18 +668,69 @@ const startScreenShare = async (resolution) => {
         setVideoContentHint(screenStream, 'detail'); // Optimize for screen sharing
         const screenTrack = screenStream.getVideoTracks()[0];
 
+        // --- System audio + microphone mixing ---
+        // getDisplayMedia() returns a system-audio track ONLY when the user
+        // checks "Share audio" (Chrome/Edge) or shares a tab (Chrome). When
+        // present, we mix it with the live microphone track so the peer hears
+        // both the presenter's voice and the desktop sound. When the screen
+        // share has no audio track (e.g. window/desktop without "share audio"),
+        // we keep sending the raw microphone track and do not set up a mix.
+        const systemAudioTrack = screenStream.getAudioTracks()[0];
+        const micTrack = localStream.getAudioTracks()[0];
+
+        if (systemAudioTrack && micTrack) {
+            try {
+                screenAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                screenAudioDestination = screenAudioContext.createMediaStreamDestination();
+
+                const micSource = screenAudioContext.createMediaStreamSource(new MediaStream([micTrack]));
+                const systemSource = screenAudioContext.createMediaStreamSource(new MediaStream([systemAudioTrack]));
+
+                // Gain nodes allow independent level control; both at 1.0 by default.
+                const micGain = screenAudioContext.createGain();
+                const systemGain = screenAudioContext.createGain();
+                micGain.gain.value = 1.0;
+                systemGain.gain.value = 1.0;
+
+                micSource.connect(micGain).connect(screenAudioDestination);
+                systemSource.connect(systemGain).connect(screenAudioDestination);
+
+                mixedAudioTrack = screenAudioDestination.stream.getAudioTracks()[0];
+                console.log('[SCREEN] Mixed audio track created (mic + system audio).');
+            } catch (mixErr) {
+                console.warn('[SCREEN] Could not mix system audio with microphone. Falling back to mic only.', mixErr);
+                cleanupScreenAudioMix();
+            }
+        } else if (systemAudioTrack && !micTrack) {
+            // No microphone available — send the raw system audio track.
+            mixedAudioTrack = systemAudioTrack;
+            console.log('[SCREEN] No microphone track; sending raw system audio.');
+        } else {
+            console.log('[SCREEN] No system audio track in screen share. Microphone track unchanged.');
+        }
+
         // Replace the video track sent to all peers with the screen track.
         // IMPORTANT: await each replaceTrack to guarantee the peer receives the
         // screen frame instead of the camera frame (fixes the bug where the
         // camera image was transmitted instead of the screen).
         for (const peerId in peerConnections) {
-            const sender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'video');
-            if (sender) {
-                await sender.replaceTrack(screenTrack);
+            const videoSender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'video');
+            if (videoSender) {
+                await videoSender.replaceTrack(screenTrack);
                 console.log(`[SCREEN] Replaced video track for peer ${peerId} with screen track.`);
             }
+            // Replace the audio track with the mixed track (mic + system) when
+            // available, so the peer receives desktop sound together with the
+            // presenter's voice.
+            if (mixedAudioTrack) {
+                const audioSender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'audio');
+                if (audioSender) {
+                    await audioSender.replaceTrack(mixedAudioTrack);
+                    console.log(`[SCREEN] Replaced audio track for peer ${peerId} with mixed audio.`);
+                }
+            }
         }
-        
+
         screenTrack.onended = () => {
             stopScreenShare();
         };
@@ -700,6 +756,17 @@ const startScreenShare = async (resolution) => {
     }
 };
 
+// Tears down the Web Audio mixing graph created during screen sharing and
+// releases the mixed audio track. Safe to call even if no mix was set up.
+function cleanupScreenAudioMix() {
+    if (screenAudioContext) {
+        try { screenAudioContext.close(); } catch (e) { /* ignore */ }
+        screenAudioContext = null;
+    }
+    screenAudioDestination = null;
+    mixedAudioTrack = null;
+}
+
 const stopScreenShare = async () => {
     if (!screenStream) return;
 
@@ -708,13 +775,26 @@ const stopScreenShare = async () => {
 
     // Restore the camera track for all peers.
     const cameraTrack = localStream.getVideoTracks()[0];
+    // Restore the original microphone track (the mixed/system audio track is
+    // discarded together with the screen stream).
+    const micTrack = localStream.getAudioTracks()[0];
     for (const peerId in peerConnections) {
-        const sender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) {
-            await sender.replaceTrack(cameraTrack);
+        const videoSender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'video');
+        if (videoSender) {
+            await videoSender.replaceTrack(cameraTrack);
             console.log(`[SCREEN] Restored camera track for peer ${peerId}.`);
         }
+        if (mixedAudioTrack && micTrack) {
+            const audioSender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'audio');
+            if (audioSender) {
+                await audioSender.replaceTrack(micTrack);
+                console.log(`[SCREEN] Restored microphone track for peer ${peerId}.`);
+            }
+        }
     }
+
+    // Tear down the Web Audio mixing graph and release the mixed track.
+    cleanupScreenAudioMix();
 
     // Restore the local video preview to the camera stream.
     localVideo.srcObject = localStream;
@@ -775,47 +855,120 @@ const updateUIAfterScreenShare = (sharerId) => {
 };
 
 // --- 14.5. Mobile Camera Switch Logic ---
+// Switches between the front and back cameras on mobile devices.
+//
+// Implementation notes (Android reliability):
+//  - `facingMode: { exact: ... }` is unreliable on many Android devices: some
+//    phones expose both cameras but ignore the constraint, return a black
+//    frame, or throw an OverconstrainedError. We therefore prefer selecting
+//    the next camera by its explicit `deviceId` (enumerated up front) and only
+//    fall back to `facingMode` constraints if deviceId selection fails.
+//  - We also keep the audio track from the existing localStream instead of
+//    requesting audio again, which avoids mic glitches during the switch.
 async function switchCamera() {
     console.log('[CONTROL] Attempting to switch camera.');
     if (!localStream || !isMobile()) return;
 
-    const videoDevices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = videoDevices.filter(device => device.kind === 'videoinput');
-    
+    const oldVideoTrack = localStream.getVideoTracks()[0];
+    if (!oldVideoTrack) {
+        console.warn('[CONTROL] No active video track to switch from.');
+        return;
+    }
+
+    // Enumerate cameras and pick the next one that is NOT the current track's
+    // device. This is the most reliable cross-device strategy.
+    let cameras = [];
+    try {
+        const videoDevices = await navigator.mediaDevices.enumerateDevices();
+        cameras = videoDevices.filter(device => device.kind === 'videoinput');
+    } catch (enumErr) {
+        console.error('[CONTROL] enumerateDevices failed:', enumErr);
+    }
+
     if (cameras.length < 2) {
         console.warn('[CONTROL] Not enough cameras to switch.');
         return;
     }
 
-    currentCamera = (currentCamera === 'user') ? 'environment' : 'user';
-    const newConstraints = {
-        video: { facingMode: { exact: currentCamera } },
-        audio: true
-    };
+    const currentDeviceId = oldVideoTrack.getSettings().deviceId;
+    // Prefer a camera with a different deviceId; if labels are unavailable
+    // (permissions not granted yet) deviceIds may still differ, so this is a
+    // safe heuristic.
+    const nextCamera =
+        cameras.find(c => c.deviceId && c.deviceId !== currentDeviceId) ||
+        cameras.find(c => c !== cameras.find(x => x.deviceId === currentDeviceId));
 
-    try {
-        const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
-        const newVideoTrack = newStream.getVideoTracks()[0];
-        
-        const oldVideoTrack = localStream.getVideoTracks()[0];
-        localStream.removeTrack(oldVideoTrack);
-        oldVideoTrack.stop();
-        localStream.addTrack(newVideoTrack);
+    const targetDeviceId = nextCamera && nextCamera.deviceId ? nextCamera.deviceId : null;
+    const targetFacing = (currentCamera === 'user') ? 'environment' : 'user';
 
-        localVideo.srcObject = newStream;
-
-        for (const peerId in peerConnections) {
-            const sender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'video');
-            if (sender) {
-                console.log(`[WebRTC] Replacing track for peer ${peerId}`);
-                await sender.replaceTrack(newVideoTrack);
-            }
-        }
-        console.log(`[CONTROL] Camera switched successfully to: ${currentCamera}`);
-    } catch (err) {
-        console.error('[ERROR] Failed to switch camera:', err);
-        currentCamera = (currentCamera === 'user') ? 'environment' : 'user';
+    // Build a list of constraint candidates, from most to least specific.
+    // We try them in order until one succeeds.
+    const constraintCandidates = [];
+    if (targetDeviceId) {
+        constraintCandidates.push({ video: { deviceId: { exact: targetDeviceId } } });
     }
+    constraintCandidates.push({ video: { facingMode: { exact: targetFacing } } });
+    constraintCandidates.push({ video: { facingMode: targetFacing } });
+    // Last-resort: just any other camera.
+    constraintCandidates.push({ video: true });
+
+    let newStream = null;
+    let lastError = null;
+    for (const constraints of constraintCandidates) {
+        try {
+            console.log('[CONTROL] Trying camera constraints:', constraints);
+            newStream = await navigator.mediaDevices.getUserMedia(constraints);
+            break;
+        } catch (err) {
+            console.warn(`[CONTROL] Constraints failed (${err.name}):`, constraints);
+            lastError = err;
+            if (newStream) { newStream.getTracks().forEach(t => t.stop()); newStream = null; }
+        }
+    }
+
+    if (!newStream) {
+        console.error('[ERROR] Failed to switch camera with all constraint candidates:', lastError);
+        // Do not flip currentCamera state since the switch failed.
+        return;
+    }
+
+    const newVideoTrack = newStream.getVideoTracks()[0];
+
+    // Sanity check: if the new track is the same deviceId as the old one and
+    // we had more than one camera, the device ignored our constraints. In that
+    // case we still proceed (better to show something than nothing), but log it.
+    const newDeviceId = newVideoTrack.getSettings().deviceId;
+    if (currentDeviceId && newDeviceId && currentDeviceId === newDeviceId) {
+        console.warn('[CONTROL] New track has the same deviceId as the old track. Device may have ignored constraints.');
+    }
+
+    // Swap the video track inside localStream (keep the existing audio track).
+    localStream.removeTrack(oldVideoTrack);
+    oldVideoTrack.stop();
+    localStream.addTrack(newVideoTrack);
+
+    // Update the local preview. Re-assign the whole localStream so the audio
+    // track stays wired to the same element.
+    localVideo.srcObject = localStream;
+
+    // Replace the track sent to every peer.
+    for (const peerId in peerConnections) {
+        const sender = peerConnections[peerId].getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) {
+            console.log(`[WebRTC] Replacing track for peer ${peerId}`);
+            await sender.replaceTrack(newVideoTrack);
+        }
+    }
+
+    // Flip the recorded facing state to match the new track's reported facing
+    // mode when available; otherwise assume the switch succeeded.
+    const newFacing = newVideoTrack.getSettings().facingMode;
+    if (newFacing) {
+        currentCamera = newFacing;
+    } else {
+        currentCamera = targetFacing;
+    }
+    console.log(`[CONTROL] Camera switched successfully to: ${currentCamera} (deviceId: ${newDeviceId || 'unknown'})`);
 }
 
 // --- 14.6 Video Content Hint Optimization ---
