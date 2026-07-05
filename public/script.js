@@ -556,11 +556,17 @@ socket.on('all-users', (otherUsers) => {
     // If we joined a room that already has users, enable the feature button
     if (otherUsers.length > 0) {
         updateFeatureButtonState();
+        // Re-evaluate the layout: if someone is already sharing, we now have
+        // 2+ participants and the presenter split should activate.
+        updateUIAfterScreenShare(currentSharerId);
     }
 });
 
 socket.on('user-joined', (newUserId) => {
     console.log(`[SIGNAL] New user ${newUserId} has joined. Awaiting their Offer.`);
+    // A new peer joined — if a screen share is active, the presenter split
+    // layout should now activate (we went from 1 to 2 participants).
+    updateUIAfterScreenShare(currentSharerId);
 });
 
 socket.on('offer', async (payload) => {
@@ -656,6 +662,9 @@ socket.on('user-disconnected', (userId) => {
 
     // Check if we are alone now and update the feature button state
     updateFeatureButtonState();
+    // Re-evaluate the layout: if the peer count dropped below 2, the
+    // presenter split should collapse back to a single full-size container.
+    updateUIAfterScreenShare(currentSharerId);
 });
 
 socket.on('current_sharer_updated', ({ sharerId }) => {
@@ -934,8 +943,15 @@ const updateUIAfterScreenShare = (sharerId) => {
         }
     });
 
-    if (sharerId) {
-        console.log('[UI] Entering presenter mode.');
+    // Count the total number of participants (local + remote peers). The
+    // presenter split layout (2/3 screen + 1/3 camera) is only used when
+    // there are 2+ participants. When the host is alone, the screen share
+    // is shown in a single full-size container — no sidebar.
+    const peerCount = Object.keys(peerConnections).length;
+    const totalParticipants = peerCount + 1; // +1 for the local user
+
+    if (sharerId && totalParticipants >= 2) {
+        console.log('[UI] Entering presenter mode (2+ participants).');
         videosEl.classList.add('presenter-mode');
         presenterArea.style.display = 'flex';
         sidebar.style.display = 'flex';
@@ -960,7 +976,11 @@ const updateUIAfterScreenShare = (sharerId) => {
         });
 
     } else {
-        console.log('[UI] Exiting presenter mode.');
+        // No sharer, OR the sharer is alone in the room. In both cases we use
+        // the default flat layout: every container is a direct child of
+        // #videos and shares the space equally via flex:1. When the host is
+        // alone and sharing, their single container fills the whole area.
+        console.log('[UI] Using flat layout (no presenter split).');
         videosEl.classList.remove('presenter-mode');
         presenterArea.style.display = 'none';
         sidebar.style.display = 'none';

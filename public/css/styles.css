@@ -359,7 +359,7 @@ video {
 }
 
 #presenter-area {
-    flex: 3;
+    flex: 2;
     display: flex;
     min-width: 0;
 }
@@ -879,6 +879,17 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
         .room-label,
         #room-name-text {
             font-size: 0.9rem;
+        }
+
+        /* In portrait presenter mode, keep the column layout: the screen
+           share sits on top (2/3 of the height) and the participant camera
+           below (1/3). This is more natural on a tall phone screen than a
+           side-by-side row. */
+        #videos.presenter-mode {
+            flex-direction: column;
+        }
+        #participant-sidebar .video-container {
+            aspect-ratio: auto;
         }
     }
 
