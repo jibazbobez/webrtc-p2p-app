@@ -393,7 +393,7 @@ video {
 
 .video-container.screen-sharing h4::after {
     content: ' • Sharing';
-    color: #4dffb4;
+    color: #ff4085;
 }
 
 /* --- 3.5 Supporting Video Styles --- */
@@ -701,7 +701,9 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
 /* --- Expanded layout: chosen container fills the ENTIRE device screen,
      others shrink to the top-left corner (Picture-in-Picture).
      When #videos is in real browser fullscreen, it becomes the fullscreen
-     element, so the layout below fills the whole screen. --- */
+     element, so the layout below fills the whole screen.
+     Safe-area insets account for notches/home indicators on modern phones
+     and for the status bar in PWA/standalone mode. --- */
 #videos.expanded-mode {
     position: fixed;
     inset: 0;
@@ -711,6 +713,8 @@ body:not(.mobile-device) #feature-btn[data-feature="switchcamera"] {
     z-index: 9998;
     background-color: #000;
     display: block;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #videos.expanded-mode .video-container {
@@ -899,6 +903,18 @@ body.expanded-mode.show-controls #videos.expanded-mode .video-container.expanded
                squished — they scale down proportionally via the rules below. */
             min-width: 0;
             overflow: visible;
+        }
+
+        /* In expanded (fullscreen) mode on mobile landscape, place the
+           controls as a vertical column on the RIGHT side of the screen. */
+        body.expanded-mode #main-controls-container {
+            top: 50%;
+            bottom: auto;
+            left: auto;
+            right: 16px;
+            transform: translateY(-50%);
+            flex-direction: column;
+            gap: 10px;
         }
 
         .main-footer {
