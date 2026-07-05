@@ -227,9 +227,18 @@ async function joinRoom() {
     // 5. Set the initial state for the feature button (disabled on desktop until a peer joins)
     updateFeatureButtonState();
 
-    // 6. Assign the local media stream to the video element and optimize it
-    localVideo.srcObject = localStream;
-    setVideoContentHint(localStream, 'motion'); // Optimize for webcam motion
+    // 6. Assign the local media stream to the video element and optimize it.
+    // If a screen share is already active (e.g. the user reloaded the page and
+    // re-joined the room while the screen track is still live), the screen
+    // stream takes priority over the camera stream for the local preview.
+    if (screenStream) {
+        localVideo.srcObject = screenStream;
+        document.getElementById('local-video-container').classList.add('screen-sharing');
+        setVideoContentHint(screenStream, 'detail');
+    } else {
+        localVideo.srcObject = localStream;
+        setVideoContentHint(localStream, 'motion'); // Optimize for webcam motion
+    }
 
     // 7. Initialize audio analysis for the speaking indicator
     setupAudioAnalysis(localStream);
@@ -1033,15 +1042,18 @@ function updateFeatureButtonState() {
     if (isMobile()) {
         return; // On mobile, this button is for switching camera and should always be active
     }
+    // The screen-share button is always enabled on desktop, even when the
+    // user is alone in the room. This lets the host start a presentation
+    // before anyone joins. The button reflects the current sharing state
+    // via its title/icon rather than being disabled.
     const peerCount = Object.keys(peerConnections).length;
-    const isEnabled = peerCount > 0;
-    featureBtn.disabled = !isEnabled;
-    if (isEnabled) {
-        featureBtn.title = 'Share your screen';
+    featureBtn.disabled = false;
+    if (screenStream) {
+        featureBtn.title = 'Stop sharing';
     } else {
-        featureBtn.title = 'Wait for another user to share your screen.';
+        featureBtn.title = 'Share your screen';
     }
-    console.log(`[UI] Updating feature button state. Peer count: ${peerCount}. Button disabled: ${!isEnabled}`);
+    console.log(`[UI] Updating feature button state. Peer count: ${peerCount}. Button disabled: false`);
 }
 
 // --- 14.8 UI Interaction ---
@@ -1150,6 +1162,12 @@ function enterExpandedMode(container) {
 function exitExpandedMode() {
     if (!expandedContainer) return;
     const videos = document.getElementById('videos');
+    // Capture a reference to the expanded container BEFORE nulling it, so the
+    // iOS fullscreen teardown below can still access it. Previously
+    // `expandedContainer = null` ran first, causing a null-deref crash when
+    // the user swiped the video away on mobile — the app froze and had to be
+    // reloaded. Now the reference is cleared only at the very end.
+    const exitingContainer = expandedContainer;
 
     videos.classList.remove('expanded-mode');
     document.body.classList.remove('expanded-mode', 'show-controls');
@@ -1169,7 +1187,6 @@ function exitExpandedMode() {
         }
     });
 
-    expandedContainer = null;
     if (controlsHideTimer) {
         clearTimeout(controlsHideTimer);
         controlsHideTimer = null;
@@ -1181,17 +1198,28 @@ function exitExpandedMode() {
     // We also remove the presentation-mode listener that was attached in
     // enterExpandedMode() to avoid a duplicate exit call.
     if (isIOS()) {
-        const videoEl = expandedContainer.querySelector('video');
+        const videoEl = exitingContainer.querySelector('video');
         if (videoEl && typeof videoEl.webkitExitFullscreen === 'function') {
             try { videoEl.webkitExitFullscreen(); } catch (e) { /* ignore */ }
         }
-        if (expandedContainer._iosFullscreenHandler) {
-            const v = expandedContainer.querySelector('video');
-            if (v) v.removeEventListener('webkitpresentationmodechanged', expandedContainer._iosFullscreenHandler);
-            expandedContainer._iosFullscreenHandler = null;
+        if (exitingContainer._iosFullscreenHandler) {
+            if (videoEl) videoEl.removeEventListener('webkitpresentationmodechanged', exitingContainer._iosFullscreenHandler);
+            exitingContainer._iosFullscreenHandler = null;
         }
     } else if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
+    }
+
+    // Restore the local video preview source. Exiting native video fullscreen
+    // (especially on iOS Safari) can blank the <video> element, leaving the
+    // user with a black screen. If a screen share is currently active, the
+    // screen stream takes priority; otherwise we fall back to the camera
+    // stream. This must run AFTER the fullscreen teardown so the browser does
+    // not override our srcObject assignment.
+    if (screenStream) {
+        localVideo.srcObject = screenStream;
+    } else {
+        localVideo.srcObject = localStream;
     }
 
     // Restore the controls container and modal to their original parents
@@ -1204,6 +1232,10 @@ function exitExpandedMode() {
         videos._modalOriginalParent.appendChild(resModal);
         videos._modalOriginalParent = null;
     }
+
+    // Clear the reference only after every piece of teardown that needs it
+    // has finished.
+    expandedContainer = null;
 
     console.log('[UI] Exited expanded (PiP) mode.');
 }
